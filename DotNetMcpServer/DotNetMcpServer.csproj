@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-DotNetMcpServer-4c45ce3c-4723-4809-a251-648374d0349a</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!--<PackageReference Include="Microsoft.Build" Version="17.12.6" ExcludeAssets="runtime" />-->
+        <PackageReference Include="Microsoft.Build.Locator" Version="1.7.8" />
+        
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0"/>
+        <!--<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />-->
+
+        <PackageReference Include="DependencyGraph.Core" Version="1.0.1" />
+        <PackageReference Include="ModelContextProtocol.NET.Server.Hosting" Version="0.3.1-alpha" />
+        
+        <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    </ItemGroup>
+
+</Project>
