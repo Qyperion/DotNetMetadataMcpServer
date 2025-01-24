@@ -13,25 +13,25 @@ public class MsBuildHelper
     }
 
     /// <summary>
-    /// Загружает .csproj через MSBuild, берёт OutputPath, AssemblyName, TargetFramework.
-    /// Ищет готовую сборку (dll или exe), а также project.assets.json.
+    /// Loads .csproj via MSBuild, retrieves OutputPath, AssemblyName, TargetFramework.
+    /// Searches for the compiled assembly (dll or exe), as well as project.assets.json.
     /// </summary>
     public (string assemblyPath, string assetsFilePath, string targetFramework)
         EvaluateProject(string csprojPath, string configuration = "Debug")
     {
         if (!File.Exists(csprojPath))
             throw new FileNotFoundException("CSProj not found", csprojPath);
-        
+
         _logger.LogInformation("Loading project: {Proj}", csprojPath);
         var project = new Project(csprojPath);
-        
+
         project.SetProperty("Configuration", configuration);
 
         var assemblyName = project.GetPropertyValue("AssemblyName");
         var outputPath = project.GetPropertyValue("OutputPath")
             .Replace('\\', Path.DirectorySeparatorChar)
             .Replace('/', Path.DirectorySeparatorChar);
-        
+
         var targetFramework = project.GetPropertyValue("TargetFramework");
 
         if (string.IsNullOrWhiteSpace(assemblyName))
@@ -42,7 +42,7 @@ public class MsBuildHelper
 
         var projDir = Path.GetDirectoryName(Path.GetFullPath(csprojPath)) ?? "";
         var fullOutputPath = Path.GetFullPath(Path.Combine(projDir, outputPath));
-        
+
         string? finalAsmPath = null;
         foreach (var ext in new[] { ".dll", ".exe" })
         {
@@ -59,12 +59,12 @@ public class MsBuildHelper
             _logger.LogWarning("Assembly not found, assume {0}", finalAsmPath);
         }
 
-        // Ищем project.assets.json
-        // Обычно: obj/{TargetFramework}/project.assets.json  или obj/project.assets.json
+        // Search for project.assets.json
+        // Usually: obj/{TargetFramework}/project.assets.json or obj/project.assets.json
         var assets1 = Path.Combine(projDir, "obj", targetFramework ?? "", "project.assets.json");
         var assets2 = Path.Combine(projDir, "obj", "project.assets.json");
-        var assetsFile = File.Exists(assets1) ? assets1 
-                         : File.Exists(assets2) ? assets2 
+        var assetsFile = File.Exists(assets1) ? assets1
+                         : File.Exists(assets2) ? assets2
                          : "";
 
         if (string.IsNullOrEmpty(assetsFile))

@@ -12,9 +12,9 @@ public class MyProjectScanner
     private readonly MsBuildHelper _msbuild;
     private readonly MyReflectionHelper _reflection;
     private readonly ILogger<MyProjectScanner> _logger;
-    
+
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
-    
+
     private string _baseDir = "";
 
     public MyProjectScanner(
@@ -28,17 +28,17 @@ public class MyProjectScanner
     }
 
     /// <summary>
-    /// Сканирует .csproj:
+    /// Scans .csproj:
     /// 1. MSBuild → assemblyPath, assetsFilePath
-    /// 2. Загружает публичные типы из самого проекта (assemblyPath)
-    /// 3. Парсит project.assets.json, строит DependencyGraph
-    /// 4. Для пакетов загружает сборки (через .RuntimeAssemblies)
-    /// 5. Возвращает ProjectMetadata
+    /// 2. Loads public types from the project itself (assemblyPath)
+    /// 3. Parses project.assets.json, builds DependencyGraph
+    /// 4. Loads assemblies for packages (via .RuntimeAssemblies)
+    /// 5. Returns ProjectMetadata
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
         MSBuildLocator.RegisterDefaults();
-        
+
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
@@ -49,18 +49,18 @@ public class MyProjectScanner
             AssemblyPath = asmPath
         };
 
-        // 1) Загрузить публичные типы самого проекта
+        // 1) Load public types from the project itself
         var projectTypes = _reflection.LoadAssemblyTypes(asmPath);
         pm.ProjectTypes.AddRange(projectTypes);
 
-        // 2) Если нет assetsFile — пропускаем зависимости
+        // 2) If there is no assetsFile, skip dependencies
         if (string.IsNullOrEmpty(assetsPath) || !File.Exists(assetsPath))
         {
             _logger.LogWarning("No project.assets.json found. Skip dependency scanning.");
             return pm;
         }
 
-        // 3) Строим DependencyGraph
+        // 3) Build DependencyGraph
         var lockFileFormat = new LockFileFormat();
         var lockFile = lockFileFormat.Read(assetsPath, new NullLogger());
 
@@ -83,7 +83,7 @@ public class MyProjectScanner
             _logger.LogWarning("No TargetFrameworkDependencyGraphNode found under root.");
             return pm;
         }
-        
+
         _baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
         var depList = new List<DependencyInfo>();
@@ -99,8 +99,8 @@ public class MyProjectScanner
 
     private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
     {
-        // Проверяем, не заходили ли уже
-        if (!_visitedNodes.Add(node)) 
+        // Check if already visited
+        if (!_visitedNodes.Add(node))
             return null;
 
         switch (node)
@@ -142,19 +142,18 @@ public class MyProjectScanner
                     Version = pkgNode.Version.ToNormalizedString(),
                     NodeType = "package"
                 };
-                // Грузим RuntimeAssemblies
+                // Load RuntimeAssemblies
                 if (pkgNode.TargetLibrary != null)
                 {
                     foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
                     {
-                        var rel = asmItem.Path; // например, "lib/net9.0/FluentValidation.dll"
+                        var rel = asmItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
                         var fileName = Path.GetFileName(rel);
                         var full = Path.Combine(_baseDir, fileName);
                         var types = _reflection.LoadAssemblyTypes(full);
                         info.Types.AddRange(types);
                     }
                 }
-                // Рекурсия
                 foreach (var child in pkgNode.Dependencies)
                 {
                     var c = BuildDependencyInfo(child);
@@ -164,7 +163,7 @@ public class MyProjectScanner
             }
             case ProjectDependencyGraphNode pnode:
             {
-                // Пока не умеем загружать сборки других проектов
+                // Currently unable to load assemblies of other projects
                 var info = new DependencyInfo
                 {
                     Name = pnode.Name,

@@ -38,12 +38,12 @@ public class MyMetadataToolHandler(
         catch (System.Exception ex)
         {
             logger.LogError(ex, "Error scanning project {Path}", parameters.ProjectFileAbsolutePath);
-            throw; // MCP сам сформирует ErrorResponse
+            throw; // MCP will generate ErrorResponse itself
         }
-        
+
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
 
-        // Возвращаем через MCP
+        // Return through MCP
         var content = new TextContent { Text = json };
         var callToolResult = new CallToolResult { Content = new Annotated[] { content } };
 

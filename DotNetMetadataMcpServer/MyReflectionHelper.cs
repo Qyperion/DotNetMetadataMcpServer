@@ -60,10 +60,10 @@ public class MyReflectionHelper
 
         foreach (var type in allTypes)
         {
-            // Сканируем только public классы/интерфейсы/enum и т.д.
-            if (!IsPublic(type)) 
+            // Scan only public classes/interfaces/enums, etc.
+            if (!IsPublic(type))
                 continue;
-            if (type.FullName == null) 
+            if (type.FullName == null)
                 continue;
 
             var ti = new TypeInfoModel
@@ -83,12 +83,12 @@ public class MyReflectionHelper
                 ti.Constructors.Add(ctorModel);
             }
 
-            // Методы (только public DeclaredOnly)
-            // Исключаем специальное имя (get_/set_/add_/remove_/op_ и т.д.)
+            // Methods (only public DeclaredOnly)
+            // Exclude special names (get_/set_/add_/remove_/op_, etc.)
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var m in methods)
             {
-                if (m.IsSpecialName) // пропускаем get_XXX, set_XXX, add_XXX, remove_XXX etc.
+                if (m.IsSpecialName) // skip get_XXX, set_XXX, add_XXX, remove_XXX, etc.
                     continue;
 
                 var mi = new MethodInfoModel
@@ -101,17 +101,17 @@ public class MyReflectionHelper
                 ti.Methods.Add(mi);
             }
 
-            // Свойства (публичные хотя бы на геттере или сеттере)
+            // Properties (public at least on getter or setter)
             var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var p in props)
             {
-                var getMethod = p.GetGetMethod(/*nonPublic*/ false);  // только публичный
-                var setMethod = p.GetSetMethod(/*nonPublic*/ false);  // только публичный
+                var getMethod = p.GetGetMethod(/*nonPublic*/ false);  // only public
+                var setMethod = p.GetSetMethod(/*nonPublic*/ false);  // only public
 
                 bool hasPublicGetter = (getMethod != null);
                 bool hasPublicSetter = (setMethod != null);
 
-                // Если нет ни публичного геттера, ни публичного сеттера - пропускаем
+                // If there is neither a public getter nor a public setter, skip
                 if (!hasPublicGetter && !hasPublicSetter)
                     continue;
 
@@ -121,18 +121,18 @@ public class MyReflectionHelper
                     PropertyType = GetFriendlyName(p.PropertyType),
                     HasPublicGetter = hasPublicGetter,
                     HasPublicSetter = hasPublicSetter,
-                    // Статическое свойство, если get/set - static
+                    // Static property if get/set is static
                     IsStatic = (getMethod?.IsStatic ?? false) || (setMethod?.IsStatic ?? false)
                 };
                 ti.Properties.Add(propModel);
             }
 
-            // Поля (только public)
+            // Fields (only public)
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var f in fields)
             {
-                if (!f.IsPublic) 
-                    continue; // хотя GetFields(Public) уже исключает не публичные, но на всякий случай
+                if (!f.IsPublic)
+                    continue; // although GetFields(Public) already excludes non-public, just in case
                 var fi = new FieldInfoModel
                 {
                     Name = f.Name,
@@ -142,11 +142,11 @@ public class MyReflectionHelper
                 ti.Fields.Add(fi);
             }
 
-            // События (public) 
+            // Events (public)
             var events = type.GetEvents(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var e in events)
             {
-                // Если публичные методы add/remove
+                // If public add/remove methods
                 var addM = e.GetAddMethod(false);
                 var removeM = e.GetRemoveMethod(false);
                 if (addM == null && removeM == null)
@@ -167,16 +167,16 @@ public class MyReflectionHelper
         return result;
     }
 
-    /// <summary>Проверяем, является ли класс/структ/интерфейс полностью публичным (учитываем IsNestedPublic).</summary>
+    /// <summary>Check if the class/struct/interface is fully public (considering IsNestedPublic).</summary>
     private bool IsPublic(Type t)
     {
         return t.IsPublic || t.IsNestedPublic;
     }
 
     /// <summary>
-    /// Формирует человекочитаемое имя типа (учитывая дженерики: List<int>, Dictionary<string, List<int>>).
-    /// Без полного namespace, только короткое имя.
-    /// Если нужно namespace — можно доработать.
+    /// Generates a human-readable type name (considering generics: List<int>, Dictionary<string, List<int>>).
+    /// Without full namespace, only short name.
+    /// If namespace is needed, it can be improved.
     /// </summary>
     private string GetFriendlyName(Type t)
     {
@@ -198,7 +198,7 @@ public class MyReflectionHelper
             return $"{name}<{string.Join(", ", args)}>";
         }
 
-        // Иначе просто t.Name (короткое имя).
+        // Otherwise, just t.Name (short name).
         return t.Name;
     }
 }

@@ -1,7 +1,7 @@
 namespace DotNetMetadataMcpServer;
 
 /// <summary>
-/// Итоговая структура, отдаваемая клиенту MCP
+/// Final structure returned to the MCP client
 /// </summary>
 public class ProjectMetadata
 {
@@ -9,14 +9,14 @@ public class ProjectMetadata
     public string TargetFramework { get; set; } = "";
     public string AssemblyPath { get; set; } = "";
 
-    /// <summary>Публичные типы (классы, интерфейсы и т.д.) из самого проекта</summary>
+    /// <summary>Public types (classes, interfaces, etc.) from the project itself</summary>
     public List<TypeInfoModel> ProjectTypes { get; set; } = new();
 
-    /// <summary>Дерево зависимостей (пакеты, проекты). У пакетов — тоже можно смотреть типы.</summary>
+    /// <summary>Dependency tree (packages, projects). For packages, types can also be viewed.</summary>
     public List<DependencyInfo> Dependencies { get; set; } = new();
 }
 
-/// <summary>Узел зависимостей (package/project/...), плюс типы, если загружены</summary>
+/// <summary>Dependency node (package/project/...), plus types if loaded</summary>
 public class DependencyInfo
 {
     public string Name { get; set; } = "";
@@ -25,14 +25,14 @@ public class DependencyInfo
 
     public List<DependencyInfo> Children { get; set; } = new();
 
-    /// <summary>Типы из RuntimeAssemblies (если это пакет)</summary>
+    /// <summary>Types from RuntimeAssemblies (if it is a package)</summary>
     public List<TypeInfoModel> Types { get; set; } = new();
 }
 
-/// <summary>Информация об одном типе</summary>
+/// <summary>Information about a single type</summary>
 public class TypeInfoModel
 {
-    public string FullName { get; set; } = "";  // Учитывая дженерики (friendly name)
+    public string FullName { get; set; } = "";  // Considering generics (friendly name)
     public List<ConstructorInfoModel> Constructors { get; set; } = new();
     public List<MethodInfoModel> Methods { get; set; } = new();
     public List<PropertyInfoModel> Properties { get; set; } = new();
