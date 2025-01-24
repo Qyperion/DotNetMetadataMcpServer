@@ -1,10 +1,10 @@
 using System.Text.Json.Serialization;
 
-namespace MySolution.McpServer.Handlers;
+namespace DotNetMetadataMcpServer;
 
 public class MetadataParameters
 {
-    public required string ProjectFilePath { get; init; }
+    public required string ProjectFileAbsolutePath { get; init; }
 }
 
 [JsonSerializable(typeof(MetadataParameters))]

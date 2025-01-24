@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-DotNetMcpServer-4c45ce3c-4723-4809-a251-648374d0349a</UserSecretsId>
+        <RootNamespace>DotNetMetadataMcpServer</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

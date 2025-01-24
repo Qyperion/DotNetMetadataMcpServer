@@ -1,28 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-
-using NuGet.ProjectModel;
-using DependencyGraph.Core;
 using DependencyGraph.Core.Graph;
 using DependencyGraph.Core.Graph.Factory;
-using MySolution.ProjectScanner.Models;
+using Microsoft.Build.Locator;
+using Microsoft.Extensions.Logging.Abstractions;
+using NuGet.ProjectModel;
 using NullLogger = NuGet.Common.NullLogger;
 
-namespace MySolution.ProjectScanner.Core;
+namespace DotNetMetadataMcpServer;
 
 public class MyProjectScanner
 {
     private readonly MsBuildHelper _msbuild;
     private readonly MyReflectionHelper _reflection;
     private readonly ILogger<MyProjectScanner> _logger;
-
-    // Чтобы не обходить один и тот же нод несколько раз
+    
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
+    
+    private string _baseDir = "";
 
     public MyProjectScanner(
         MsBuildHelper msBuildHelper,
@@ -35,78 +28,80 @@ public class MyProjectScanner
     }
 
     /// <summary>
-    /// Полный цикл:
-    /// 1) MSBuild: узнать output assembly, assetsFile
-    /// 2) Загрузить основные типы проекта
-    /// 3) Прочитать DependencyGraph, обойти пакеты (и пр.).
-    /// 4) Вернуть ProjectMetadata.
+    /// Сканирует .csproj:
+    /// 1. MSBuild → assemblyPath, assetsFilePath
+    /// 2. Загружает публичные типы из самого проекта (assemblyPath)
+    /// 3. Парсит project.assets.json, строит DependencyGraph
+    /// 4. Для пакетов загружает сборки (через .RuntimeAssemblies)
+    /// 5. Возвращает ProjectMetadata
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
-        // 1) MSBuild 
+        MSBuildLocator.RegisterDefaults();
+        
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
-        var metadata = new ProjectMetadata
+        var pm = new ProjectMetadata
         {
             ProjectName = projectName,
             TargetFramework = tfm,
             AssemblyPath = asmPath
         };
 
-        // 2) Рефлектим саму сборку проекта
-        var mainProjectTypes = _reflection.LoadAssemblyTypes(asmPath);
-        metadata.ProjectTypes.AddRange(mainProjectTypes);
+        // 1) Загрузить публичные типы самого проекта
+        var projectTypes = _reflection.LoadAssemblyTypes(asmPath);
+        pm.ProjectTypes.AddRange(projectTypes);
 
-        // 3) Сканируем зависимости через project.assets.json
-        if (!File.Exists(assetsPath))
+        // 2) Если нет assetsFile — пропускаем зависимости
+        if (string.IsNullOrEmpty(assetsPath) || !File.Exists(assetsPath))
         {
-            _logger.LogWarning("No project.assets.json found at {0}; skipping dependency scan", assetsPath);
-            return metadata; // Вернём хоть какие-то данные
+            _logger.LogWarning("No project.assets.json found. Skip dependency scanning.");
+            return pm;
         }
 
+        // 3) Строим DependencyGraph
         var lockFileFormat = new LockFileFormat();
-        var lockFile = lockFileFormat.Read(filePath: assetsPath, log: new NullLogger());
+        var lockFile = lockFileFormat.Read(assetsPath, new NullLogger());
 
         var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
         {
-            // Исключаем Microsoft.* / System.* (пример)
-            Excludes = new[] { "Microsoft.*", "System.*" }
+            Excludes = ["Microsoft.*", "System.*"]
         });
         var graph = depGraphFactory.FromLockFile(lockFile);
 
-        // Обычно 1 rootNode
         var rootNode = graph.RootNodes.FirstOrDefault() as RootProjectDependencyGraphNode;
         if (rootNode == null)
         {
-            _logger.LogWarning("No RootProjectDependencyGraphNode in the graph. Possibly empty?");
-            return metadata;
+            _logger.LogWarning("No RootProjectDependencyGraphNode found.");
+            return pm;
         }
 
-        // Находим TFM-node (одна)
         var tfmNode = rootNode.Dependencies.OfType<TargetFrameworkDependencyGraphNode>().FirstOrDefault();
         if (tfmNode == null)
         {
-            _logger.LogWarning("No TargetFrameworkDependencyGraphNode under root node?");
-            return metadata;
+            _logger.LogWarning("No TargetFrameworkDependencyGraphNode found under root.");
+            return pm;
         }
+        
+        _baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
-        // Обходим рекурсивно
-        var depInfos = new List<DependencyInfo>();
+        var depList = new List<DependencyInfo>();
         foreach (var child in tfmNode.Dependencies)
         {
-            var d = BuildDependencyInfo(child, Path.GetDirectoryName(assetsPath) ?? "");
-            if (d != null) depInfos.Add(d);
+            var d = BuildDependencyInfo(child);
+            if (d != null) depList.Add(d);
         }
-        metadata.Dependencies = depInfos;
+        pm.Dependencies = depList;
 
-        return metadata;
+        return pm;
     }
 
-    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir)
+    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
     {
-        if (!_visitedNodes.Add(node))
-            return null; // уже были
+        // Проверяем, не заходили ли уже
+        if (!_visitedNodes.Add(node)) 
+            return null;
 
         switch (node)
         {
@@ -115,12 +110,11 @@ public class MyProjectScanner
                 var info = new DependencyInfo
                 {
                     Name = rootNode.Name,
-                    Version = "",
                     NodeType = "root"
                 };
                 foreach (var child in rootNode.Dependencies)
                 {
-                    var c = BuildDependencyInfo(child, baseDir);
+                    var c = BuildDependencyInfo(child);
                     if (c != null) info.Children.Add(c);
                 }
                 return info;
@@ -131,11 +125,11 @@ public class MyProjectScanner
                 {
                     Name = tfmNode.ProjectName,
                     Version = tfmNode.TargetFrameworkIdentifier,
-                    NodeType = "tfm"
+                    NodeType = "target framework dependency"
                 };
                 foreach (var child in tfmNode.Dependencies)
                 {
-                    var c = BuildDependencyInfo(child, baseDir);
+                    var c = BuildDependencyInfo(child);
                     if (c != null) info.Children.Add(c);
                 }
                 return info;
@@ -148,53 +142,51 @@ public class MyProjectScanner
                     Version = pkgNode.Version.ToNormalizedString(),
                     NodeType = "package"
                 };
-                // Грузим dll-ки (RuntimeAssemblies)
+                // Грузим RuntimeAssemblies
                 if (pkgNode.TargetLibrary != null)
                 {
                     foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
                     {
-                        var asmRelPath = asmItem.Path;
-                        var asmFullPath = Path.Combine(baseDir, asmRelPath);
-                        var types = _reflection.LoadAssemblyTypes(asmFullPath);
+                        var rel = asmItem.Path; // например, "lib/net9.0/FluentValidation.dll"
+                        var fileName = Path.GetFileName(rel);
+                        var full = Path.Combine(_baseDir, fileName);
+                        var types = _reflection.LoadAssemblyTypes(full);
                         info.Types.AddRange(types);
                     }
                 }
-                // Рекурсивно обходим Dependencies
+                // Рекурсия
                 foreach (var child in pkgNode.Dependencies)
                 {
-                    var c = BuildDependencyInfo(child, baseDir);
+                    var c = BuildDependencyInfo(child);
                     if (c != null) info.Children.Add(c);
                 }
                 return info;
             }
-            case ProjectDependencyGraphNode prjNode:
+            case ProjectDependencyGraphNode pnode:
             {
-                // Пока не умеем искать dll другой проект, 
-                // так что просто собираем дерево, но без типов.
+                // Пока не умеем загружать сборки других проектов
                 var info = new DependencyInfo
                 {
-                    Name = prjNode.Name,
-                    Version = "",
+                    Name = pnode.Name,
                     NodeType = "project"
                 };
-                foreach (var child in prjNode.Dependencies)
+                foreach (var child in pnode.Dependencies)
                 {
-                    var c = BuildDependencyInfo(child, baseDir);
+                    var c = BuildDependencyInfo(child);
                     if (c != null) info.Children.Add(c);
                 }
                 return info;
             }
             default:
             {
-                // fallback
                 var info = new DependencyInfo
                 {
-                    Name = node.ToString() ?? "UnknownNode",
+                    Name = node.ToString() ?? "Unknown",
                     NodeType = "unknown"
                 };
                 foreach (var child in node.Dependencies)
                 {
-                    var c = BuildDependencyInfo(child, baseDir);
+                    var c = BuildDependencyInfo(child);
                     if (c != null) info.Children.Add(c);
                 }
                 return info;

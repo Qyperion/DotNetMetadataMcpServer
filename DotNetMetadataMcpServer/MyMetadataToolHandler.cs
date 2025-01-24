@@ -1,9 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-
 using ModelContextProtocol.NET.Core.Models.Protocol.Client.Responses;
 using ModelContextProtocol.NET.Core.Models.Protocol.Common;
 using ModelContextProtocol.NET.Core.Models.Protocol.Shared.Content;
@@ -11,10 +7,7 @@ using ModelContextProtocol.NET.Server.Contexts;
 using ModelContextProtocol.NET.Server.Features.Tools;
 using ModelContextProtocol.NET.Server.Session;
 
-using MySolution.ProjectScanner.Core;
-using MySolution.ProjectScanner.Models;
-
-namespace MySolution.McpServer.Handlers;
+namespace DotNetMetadataMcpServer;
 
 public class MyMetadataToolHandler(
     IServerContext serverContext,
@@ -26,8 +19,8 @@ public class MyMetadataToolHandler(
     private static readonly Tool tool = new()
     {
         Name = "MetadataExplorer",
-        Description = "Scans a .csproj to retrieve reflection-based metadata from the main assembly + package dependencies.",
-        InputSchema = MetadataParametersJsonContext.Default.MetadataParameters.GetToolSchema()!
+        Description = "Scans a .csproj for public reflection metadata and package references with recursive metadata information",
+        InputSchema = MetadataParametersJsonContext.Default.MetadataParameters.GetToolSchema<MetadataParameters>()!
     };
 
     public override JsonTypeInfo JsonTypeInfo =>
@@ -35,25 +28,22 @@ public class MyMetadataToolHandler(
 
     protected override Task<CallToolResult> HandleAsync(MetadataParameters parameters, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Received request to scan project {Path}", parameters.ProjectFilePath);
+        logger.LogInformation("Received request to scan project {Path}", parameters.ProjectFileAbsolutePath);
 
         ProjectMetadata result;
         try
         {
-            // Запускаем сканирование
-            result = scanner.ScanProject(parameters.ProjectFilePath);
+            result = scanner.ScanProject(parameters.ProjectFileAbsolutePath);
         }
         catch (System.Exception ex)
         {
-            logger.LogError(ex, "Error scanning project {Path}", parameters.ProjectFilePath);
-            // MCP-сервер сам сформирует ErrorResponse.
-            throw;
+            logger.LogError(ex, "Error scanning project {Path}", parameters.ProjectFileAbsolutePath);
+            throw; // MCP сам сформирует ErrorResponse
         }
-
-        // Превращаем result в JSON
+        
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
 
-        // Возвращаем клиенту MCP через TextContent
+        // Возвращаем через MCP
         var content = new TextContent { Text = json };
         var callToolResult = new CallToolResult { Content = new Annotated[] { content } };
 

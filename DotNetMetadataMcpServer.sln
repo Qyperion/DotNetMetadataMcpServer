@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetMcpServer", "DotNetMcpServer\DotNetMcpServer.csproj", "{13906ADE-78DB-44A7-8625-1E6ABC927F93}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetMetadataMcpServer", "DotNetMetadataMcpServer\DotNetMetadataMcpServer.csproj", "{13906ADE-78DB-44A7-8625-1E6ABC927F93}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetadataExplorerTest", "MetadataExplorerTest\MetadataExplorerTest.csproj", "{AF610F59-FAD1-4791-BD7E-A0972E8C2EBD}"
 EndProject
