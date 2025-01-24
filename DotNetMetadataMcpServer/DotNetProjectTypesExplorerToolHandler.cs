@@ -9,17 +9,18 @@ using ModelContextProtocol.NET.Server.Session;
 
 namespace DotNetMetadataMcpServer;
 
-public class MyMetadataToolHandler(
+public class DotNetProjectTypesExplorerToolHandler(
     IServerContext serverContext,
     ISessionFacade sessionFacade,
-    MyProjectScanner scanner,
-    ILogger<MyMetadataToolHandler> logger
+    DependenciesScanner scanner,
+    ILogger<DotNetProjectTypesExplorerToolHandler> logger
 ) : ToolHandlerBase<MetadataParameters>(tool, serverContext, sessionFacade)
 {
     private static readonly Tool tool = new()
     {
-        Name = "MetadataExplorer",
-        Description = "Scans a .csproj for public reflection metadata and package references with recursive metadata information",
+        Name = "DotNetProjectTypesExplorer",
+        Description = "Scans a .csproj for available public types and members in the project and in all referenced NuGet packages " +
+                      "(doesn't extract data from referenced projects for now).",
         InputSchema = MetadataParametersJsonContext.Default.MetadataParameters.GetToolSchema<MetadataParameters>()!
     };
 

@@ -1,5 +1,6 @@
 using ModelContextProtocol.NET.Core.Models.Protocol.Common;
 using ModelContextProtocol.NET.Server.Builder;
+using ModelContextProtocol.NET.Server.Hosting;
 using Serilog;
 
 namespace DotNetMetadataMcpServer;
@@ -21,7 +22,7 @@ public class Program
         {
             var serverInfo = new Implementation
             {
-                Name = "DonNet Projects Metadata MCP Server",
+                Name = "DotNet Projects Types Explorer MCP Server",
                 Version = "1.0.0"
             };
         
@@ -29,11 +30,11 @@ public class Program
             builder.Services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(logger));
             
             builder.Services.AddScoped<MsBuildHelper>();
-            builder.Services.AddScoped<MyReflectionHelper>();
-            builder.Services.AddScoped<MyProjectScanner>();
-            builder.Services.AddScoped<MyMetadataToolHandler>();
+            builder.Services.AddScoped<ReflectionTypesCollector>();
+            builder.Services.AddScoped<DependenciesScanner>();
+            builder.Services.AddScoped<DotNetProjectTypesExplorerToolHandler>();
             
-            builder.Tools.AddHandler<MyMetadataToolHandler>();
+            builder.Tools.AddHandler<DotNetProjectTypesExplorerToolHandler>();
             
             var host = builder.Build();
             host.Start();
@@ -52,8 +53,7 @@ public class Program
     /*public static async Task Main(string[] args)
     {
         var logger = new LoggerConfiguration()
-            //.WriteTo.File("log.txt")
-            .WriteTo.Console()
+            .WriteTo.File("log.txt")
             .MinimumLevel.Debug()
             .CreateLogger();
         Log.Logger = logger; 
@@ -62,7 +62,7 @@ public class Program
         {
             var serverInfo = new Implementation
             {
-                Name = "DonNet Projects Metadata MCP Server",
+                Name = "DotNet Projects Types Explorer MCP Server",
                 Version = "1.0.0"
             };
         
@@ -71,17 +71,15 @@ public class Program
             builder.Services.AddMcpServer(serverInfo, mcp => {
                 mcp.AddStdioTransport();
                 mcp.Services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(logger));
-                mcp.Tools.AddHandler<MyMetadataToolHandler>();
-                // same as without hosting
-            }, keepDefaultLogging: false); // clear default console logging
+                mcp.Tools.AddHandler<DotNetProjectTypesExplorerToolHandler>();
+            }, keepDefaultLogging: false);
             
-            //var builder = new McpServerBuilder(serverInfo).AddStdioTransport();
             builder.Services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(logger));
             
             builder.Services.AddScoped<MsBuildHelper>();
-            builder.Services.AddScoped<MyReflectionHelper>();
-            builder.Services.AddScoped<MyProjectScanner>();
-            builder.Services.AddScoped<MyMetadataToolHandler>();
+            builder.Services.AddScoped<ReflectionTypesCollector>();
+            builder.Services.AddScoped<DependenciesScanner>();
+            builder.Services.AddScoped<DotNetProjectTypesExplorerToolHandler>();
 
             var host = builder.Build();
             await host.RunAsync();

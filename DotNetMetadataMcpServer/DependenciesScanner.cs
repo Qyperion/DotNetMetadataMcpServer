@@ -7,24 +7,24 @@ using NullLogger = NuGet.Common.NullLogger;
 
 namespace DotNetMetadataMcpServer;
 
-public class MyProjectScanner
+public class DependenciesScanner
 {
     private readonly MsBuildHelper _msbuild;
-    private readonly MyReflectionHelper _reflection;
-    private readonly ILogger<MyProjectScanner> _logger;
+    private readonly ReflectionTypesCollector _reflection;
+    private readonly ILogger<DependenciesScanner> _logger;
 
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
 
     private string _baseDir = "";
 
-    public MyProjectScanner(
+    public DependenciesScanner(
         MsBuildHelper msBuildHelper,
-        MyReflectionHelper reflectionHelper,
-        ILogger<MyProjectScanner>? logger = null)
+        ReflectionTypesCollector reflectionTypesCollector,
+        ILogger<DependenciesScanner>? logger = null)
     {
         _msbuild = msBuildHelper;
-        _reflection = reflectionHelper;
-        _logger = logger ?? NullLogger<MyProjectScanner>.Instance;
+        _reflection = reflectionTypesCollector;
+        _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
     }
 
     /// <summary>

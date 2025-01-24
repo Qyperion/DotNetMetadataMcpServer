@@ -4,14 +4,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DotNetMetadataMcpServer;
 
-public class MyReflectionHelper
+public class ReflectionTypesCollector
 {
-    private readonly ILogger<MyReflectionHelper> _logger;
+    private readonly ILogger<ReflectionTypesCollector> _logger;
     private readonly HashSet<string> _loadedAssemblyPaths = new(StringComparer.OrdinalIgnoreCase);
 
-    public MyReflectionHelper(ILogger<MyReflectionHelper>? logger = null)
+    public ReflectionTypesCollector(ILogger<ReflectionTypesCollector>? logger = null)
     {
-        _logger = logger ?? NullLogger<MyReflectionHelper>.Instance;
+        _logger = logger ?? NullLogger<ReflectionTypesCollector>.Instance;
     }
 
     public List<TypeInfoModel> LoadAssemblyTypes(string asmPath)
