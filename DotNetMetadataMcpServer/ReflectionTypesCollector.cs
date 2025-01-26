@@ -146,6 +146,9 @@ public class ReflectionTypesCollector
             var events = type.GetEvents(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
             foreach (var e in events)
             {
+                if (e.EventHandlerType == null)
+                    continue; // should not happen
+                
                 // If public add/remove methods
                 var addM = e.GetAddMethod(false);
                 var removeM = e.GetRemoveMethod(false);

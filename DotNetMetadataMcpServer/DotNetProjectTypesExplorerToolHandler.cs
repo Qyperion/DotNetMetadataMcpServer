@@ -20,7 +20,8 @@ public class DotNetProjectTypesExplorerToolHandler(
     {
         Name = "DotNetProjectTypesExplorer",
         Description = "Scans a .csproj for available public types and members in the project and in all referenced NuGet packages " +
-                      "(doesn't extract data from referenced projects for now).",
+                      "(doesn't extract data from referenced projects for now). " +
+                      "Notice that the project must be built before scanning.",
         InputSchema = MetadataParametersJsonContext.Default.MetadataParameters.GetToolSchema<MetadataParameters>()!
     };
 

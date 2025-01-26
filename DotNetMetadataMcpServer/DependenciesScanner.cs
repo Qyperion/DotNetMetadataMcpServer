@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.Loader;
 using DependencyGraph.Core.Graph;
 using DependencyGraph.Core.Graph.Factory;
 using Microsoft.Build.Locator;
@@ -7,7 +9,7 @@ using NullLogger = NuGet.Common.NullLogger;
 
 namespace DotNetMetadataMcpServer;
 
-public class DependenciesScanner
+public class DependenciesScanner : IDisposable
 {
     private readonly MsBuildHelper _msbuild;
     private readonly ReflectionTypesCollector _reflection;
@@ -25,6 +27,8 @@ public class DependenciesScanner
         _msbuild = msBuildHelper;
         _reflection = reflectionTypesCollector;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
+        
+        AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
     }
 
     /// <summary>
@@ -191,5 +195,23 @@ public class DependenciesScanner
                 return info;
             }
         }
+    }
+    
+    private Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
+    {
+        var assemblyName = new AssemblyName(args.Name);
+        var assemblyPath = Path.Combine(Path.GetDirectoryName(args.RequestingAssembly?.Location) ?? string.Empty, $"{assemblyName.Name}.dll");
+
+        if (File.Exists(assemblyPath))
+        {
+            return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
+        }
+
+        return null;
+    }
+
+    public void Dispose()
+    {
+        AppDomain.CurrentDomain.AssemblyResolve -= ResolveAssembly;
     }
 }
