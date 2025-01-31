@@ -37,12 +37,14 @@ public class DotNetProjectTypesExplorerToolHandler(
         {
             result = scanner.ScanProject(parameters.ProjectFileAbsolutePath);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Error scanning project {Path}", parameters.ProjectFileAbsolutePath);
             throw; // MCP will generate ErrorResponse itself
         }
 
+        logger.LogInformation("Project {ProjectName} scanned successfully", result.ProjectName);
+        
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
 
         // Return through MCP

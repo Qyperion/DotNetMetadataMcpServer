@@ -13,6 +13,7 @@ public class DependenciesScanner : IDisposable
 {
     private readonly MsBuildHelper _msbuild;
     private readonly ReflectionTypesCollector _reflection;
+    private readonly ILogger _nuGetLogger;
     private readonly ILogger<DependenciesScanner> _logger;
 
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
@@ -22,10 +23,12 @@ public class DependenciesScanner : IDisposable
     public DependenciesScanner(
         MsBuildHelper msBuildHelper,
         ReflectionTypesCollector reflectionTypesCollector,
-        ILogger<DependenciesScanner>? logger = null)
+        ILogger<DependenciesScanner>? logger = null,
+        ILogger<LockFileFormat>? nuGetLogger = null)
     {
         _msbuild = msBuildHelper;
         _reflection = reflectionTypesCollector;
+        _nuGetLogger = nuGetLogger ?? NullLogger<LockFileFormat>.Instance;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
         
         AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
@@ -44,6 +47,8 @@ public class DependenciesScanner : IDisposable
         MSBuildLocator.RegisterDefaults();
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
+        
+        _baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
         var pm = new ProjectMetadata
@@ -52,6 +57,8 @@ public class DependenciesScanner : IDisposable
             TargetFramework = tfm,
             AssemblyPath = asmPath
         };
+        var depList = new List<DependencyInfo>();
+        pm.Dependencies = depList;
 
         // 1) Load public types from the project itself
         var projectTypes = _reflection.LoadAssemblyTypes(asmPath);
@@ -66,12 +73,28 @@ public class DependenciesScanner : IDisposable
 
         // 3) Build DependencyGraph
         var lockFileFormat = new LockFileFormat();
-        var lockFile = lockFileFormat.Read(assetsPath, new NullLogger());
+        var lockFile = lockFileFormat.Read(assetsPath, new MicrosoftLoggerAdapter(_nuGetLogger));
+        
+        
+        var theFirstTarget = lockFile.Targets.FirstOrDefault();
+        if (theFirstTarget == null)
+        {
+            _logger.LogWarning("No targets found in lock file.");
+            return pm;
+        }
+        
+        foreach (var lib in theFirstTarget.Libraries)
+        {
+            var d = BuildDependencyInfo(lib);
+            depList.AddRange(d);
+        }
+        
 
-        var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
+        /*var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
         {
             Excludes = ["Microsoft.*", "System.*"]
         });
+        
         var graph = depGraphFactory.FromLockFile(lockFile);
 
         var rootNode = graph.RootNodes.FirstOrDefault() as RootProjectDependencyGraphNode;
@@ -87,19 +110,40 @@ public class DependenciesScanner : IDisposable
             _logger.LogWarning("No TargetFrameworkDependencyGraphNode found under root.");
             return pm;
         }
-
-        _baseDir = Path.GetDirectoryName(asmPath) ?? "";
-
-        var depList = new List<DependencyInfo>();
+        
         foreach (var child in tfmNode.Dependencies)
         {
             var d = BuildDependencyInfo(child);
             if (d != null) depList.Add(d);
-        }
-        pm.Dependencies = depList;
+        }*/
+        
 
         return pm;
     }
+
+    private List<DependencyInfo> BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary)
+    {
+        var result = new List<DependencyInfo>();
+        foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
+        {
+            var rel = lockFileItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
+            var fileName = Path.GetFileName(rel);
+            var full = Path.Combine(_baseDir, fileName);
+            var types = _reflection.LoadAssemblyTypes(full);
+            var info = new DependencyInfo
+            {
+                Name = lockFileTargetLibrary.Name ?? "Unknown",
+                Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
+                NodeType = "package",
+                Types = types
+            };
+            result.Add(info);
+        }
+
+        return result;
+    }
+    
+    
 
     private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
     {

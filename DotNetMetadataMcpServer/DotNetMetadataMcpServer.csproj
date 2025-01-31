@@ -17,7 +17,7 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />-->
 
         <PackageReference Include="DependencyGraph.Core" Version="1.0.1" />
-        <PackageReference Include="ModelContextProtocol.NET.Server.Hosting" Version="0.3.1-alpha" />
+        <PackageReference Include="ModelContextProtocol.NET.Server.Hosting" Version="0.3.2-alpha" />
         
         <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
