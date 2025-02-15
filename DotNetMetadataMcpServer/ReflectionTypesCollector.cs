@@ -200,8 +200,7 @@ public class ReflectionTypesCollector
             var args = t.GetGenericArguments().Select(a => GetFriendlyName(a)).ToArray();
             return $"{name}<{string.Join(", ", args)}>";
         }
-
-        // Otherwise, just t.Name (short name).
-        return t.Name;
+        
+        return t.FullName ?? t.Name; //return t.Name;
     }
 }

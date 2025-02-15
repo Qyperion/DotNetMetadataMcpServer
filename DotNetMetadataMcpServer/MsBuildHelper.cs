@@ -23,8 +23,18 @@ public class MsBuildHelper
             throw new FileNotFoundException("CSProj not found", csprojPath);
 
         _logger.LogInformation("Loading project: {Proj}", csprojPath);
-        var project = new Project(csprojPath);
+        
+        using var projectCollection = new ProjectCollection();
 
+        // Unload any existing projects with the same path
+        var existingProject = projectCollection.LoadedProjects
+            .FirstOrDefault(p => string.Equals(p.FullPath, csprojPath, StringComparison.OrdinalIgnoreCase));
+        if (existingProject != null)
+        {
+            projectCollection.UnloadProject(existingProject);
+        }
+
+        var project = new Project(csprojPath, null, null, projectCollection);
         project.SetProperty("Configuration", configuration);
 
         var assemblyName = project.GetPropertyValue("AssemblyName");
@@ -71,6 +81,8 @@ public class MsBuildHelper
         {
             _logger.LogWarning("project.assets.json not found in {0}", projDir);
         }
+        
+        projectCollection.UnloadAllProjects();
 
         return (finalAsmPath, assetsFile, targetFramework ?? "netX");
     }

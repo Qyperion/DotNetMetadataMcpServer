@@ -19,6 +19,7 @@ public class DependenciesScanner : IDisposable
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
 
     private string _baseDir = "";
+    private bool _msbuildRegistered;
 
     public DependenciesScanner(
         MsBuildHelper msBuildHelper,
@@ -30,6 +31,8 @@ public class DependenciesScanner : IDisposable
         _reflection = reflectionTypesCollector;
         _nuGetLogger = nuGetLogger ?? NullLogger<LockFileFormat>.Instance;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
+
+        _msbuildRegistered = false;
         
         AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
     }
@@ -44,7 +47,11 @@ public class DependenciesScanner : IDisposable
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
-        MSBuildLocator.RegisterDefaults();
+        if (!_msbuildRegistered)
+        {
+            MSBuildLocator.RegisterDefaults();
+            _msbuildRegistered = true;
+        }
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
         
