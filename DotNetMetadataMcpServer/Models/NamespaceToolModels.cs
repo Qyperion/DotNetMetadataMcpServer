@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json.Serialization;
+using DotNetMetadataMcpServer.Models.Base;
 
 namespace DotNetMetadataMcpServer.Models
 {

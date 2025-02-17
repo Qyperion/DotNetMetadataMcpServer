@@ -1,4 +1,4 @@
-namespace DotNetMetadataMcpServer.Models;
+namespace DotNetMetadataMcpServer.Models.Base;
 
 public abstract class PagedRequestWithFilter
 {
