@@ -7,7 +7,6 @@ namespace DotNetMetadataMcpServer;
 public class ReflectionTypesCollector
 {
     private readonly ILogger<ReflectionTypesCollector> _logger;
-    private readonly HashSet<string> _loadedAssemblyPaths = new(StringComparer.OrdinalIgnoreCase);
 
     public ReflectionTypesCollector(ILogger<ReflectionTypesCollector>? logger = null)
     {
@@ -16,6 +15,8 @@ public class ReflectionTypesCollector
 
     public List<TypeInfoModel> LoadAssemblyTypes(string asmPath)
     {
+        HashSet<string> loadedAssemblyPaths = new(StringComparer.OrdinalIgnoreCase);
+        
         var result = new List<TypeInfoModel>();
         if (string.IsNullOrEmpty(asmPath) || !File.Exists(asmPath))
         {
@@ -24,7 +25,7 @@ public class ReflectionTypesCollector
         }
 
         var fullPath = Path.GetFullPath(asmPath);
-        if (!_loadedAssemblyPaths.Add(fullPath))
+        if (!loadedAssemblyPaths.Add(fullPath))
         {
             return result;
         }
