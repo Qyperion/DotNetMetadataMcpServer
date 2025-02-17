@@ -6,9 +6,9 @@ namespace DotNetMetadataMcpServer.Services
 {
     public class TypeToolService
     {
-        private readonly DependenciesScanner _scanner;
+        private readonly IDependenciesScanner _scanner;
         
-        public TypeToolService(DependenciesScanner scanner)
+        public TypeToolService(IDependenciesScanner scanner)
         {
             _scanner = scanner;
         }

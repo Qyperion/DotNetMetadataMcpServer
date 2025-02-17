@@ -9,7 +9,7 @@ using NullLogger = NuGet.Common.NullLogger;
 
 namespace DotNetMetadataMcpServer;
 
-public class DependenciesScanner : IDisposable
+public class DependenciesScanner : IDependenciesScanner
 {
     private readonly MsBuildHelper _msbuild;
     private readonly ReflectionTypesCollector _reflection;
@@ -19,7 +19,6 @@ public class DependenciesScanner : IDisposable
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
 
     private string _baseDir = "";
-    private bool _msbuildRegistered;
 
     public DependenciesScanner(
         MsBuildHelper msBuildHelper,
@@ -31,8 +30,6 @@ public class DependenciesScanner : IDisposable
         _reflection = reflectionTypesCollector;
         _nuGetLogger = nuGetLogger ?? NullLogger<LockFileFormat>.Instance;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
-
-        _msbuildRegistered = false;
         
         AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
     }
@@ -47,10 +44,9 @@ public class DependenciesScanner : IDisposable
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
-        if (!_msbuildRegistered)
+        if (!MSBuildLocator.IsRegistered)
         {
             MSBuildLocator.RegisterDefaults();
-            _msbuildRegistered = true;
         }
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);

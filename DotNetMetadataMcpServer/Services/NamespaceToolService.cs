@@ -6,9 +6,9 @@ namespace DotNetMetadataMcpServer.Services
 {
     public class NamespaceToolService
     {
-        private readonly DependenciesScanner _scanner;
+        private readonly IDependenciesScanner _scanner;
 
-        public NamespaceToolService(DependenciesScanner scanner)
+        public NamespaceToolService(IDependenciesScanner scanner)
         {
             _scanner = scanner;
         }
@@ -30,8 +30,8 @@ namespace DotNetMetadataMcpServer.Services
             if (allowedAssemblyNames is { Count: > 0 })
             {
                 // Include namespaces from the main project if its assembly name is allowed.
-                var mainAssemblyName = Path.GetFileName(metadata.AssemblyPath);
-                if (allowedAssemblyNamesWithoutExtension.Contains(mainAssemblyName))
+                var mainAssemblyNameWithoutExtension = Path.GetFileNameWithoutExtension(metadata.AssemblyPath);
+                if (allowedAssemblyNamesWithoutExtension.Contains(mainAssemblyNameWithoutExtension.ToLowerInvariant()))
                 {
                     allowedNamespaces.AddRange(ExtractNamespaces(metadata.ProjectTypes));
                 }
@@ -39,7 +39,8 @@ namespace DotNetMetadataMcpServer.Services
                 // Include namespaces from dependencies whose Name is in allowedAssemblyNames.
                 foreach (var dep in metadata.Dependencies)
                 {
-                    if (allowedAssemblyNamesWithoutExtension.Contains(dep.Name))
+                    var depNameWithoutExtension = Path.GetFileNameWithoutExtension(dep.Name);
+                    if (allowedAssemblyNamesWithoutExtension.Contains(depNameWithoutExtension.ToLowerInvariant()))
                     {
                         allowedNamespaces.AddRange(ExtractNamespaces(dep.Types));
                     }

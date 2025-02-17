@@ -6,9 +6,9 @@ namespace DotNetMetadataMcpServer.Services
 {
     public class AssemblyToolService
     {
-        private readonly DependenciesScanner _scanner;
+        private readonly IDependenciesScanner _scanner;
 
-        public AssemblyToolService(DependenciesScanner scanner)
+        public AssemblyToolService(IDependenciesScanner scanner)
         {
             _scanner = scanner;
         }
@@ -17,7 +17,7 @@ namespace DotNetMetadataMcpServer.Services
         {
             var metadata = _scanner.ScanProject(projectFileAbsolutePath);
             // Get main assembly name and dependency names from full data
-            var assemblies = new List<string> { Path.GetFileName(metadata.AssemblyPath) };
+            var assemblies = new List<string> { Path.GetFileNameWithoutExtension(metadata.AssemblyPath) };
             assemblies.AddRange(metadata.Dependencies.Select(d => d.Name));
 
             if (filters.Any())
