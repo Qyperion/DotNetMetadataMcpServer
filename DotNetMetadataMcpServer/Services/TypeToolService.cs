@@ -34,8 +34,8 @@ namespace DotNetMetadataMcpServer.Services
             // Apply additional filter if provided.
             if (filters.Any())
             {
-                var pattern = "^" + Regex.Escape(filters[0]).Replace("\\*", ".*") + "$";
-                allTypes = allTypes.Where(t => Regex.IsMatch(t.FullName, pattern, RegexOptions.IgnoreCase));
+                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                allTypes = allTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
             }
             
             var allTypesList = allTypes.ToList();

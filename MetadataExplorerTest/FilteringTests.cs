@@ -114,5 +114,120 @@ namespace MetadataExplorerTest
             Assert.That(assemblies.First(), Is.EqualTo("DepAssembly.dll"));
             Assert.That(response.CurrentPage, Is.EqualTo(pageNumber));
         }
+        
+        [Test]
+        public void TypeToolService_ShouldReturnAllTypes_WhenNoAllowedNamespacesAndNoFilters()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string>();
+            var filters = new List<string>();
+            int pageNumber = 1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert: Expect all types from the fake data.
+            Assert.That(response.TypeData.Count, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void TypeToolService_ShouldApplyWildcardFilter_IgnoringCase()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string>();
+            var filters = new List<string> { "MY*" };
+            int pageNumber = 1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert: Should match "MyNamespace.MyType".
+            Assert.That(response.TypeData.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TypeToolService_ShouldHandleMultipleAllowedNamespaces()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string> { "MyNamespace", "DepNamespace" };
+            var filters = new List<string>();
+            int pageNumber = 1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert: Should return types from the specified namespaces only.
+            Assert.That(response.TypeData.Count, Is.EqualTo(2));
+        }
+        
+        [Test]
+        public void TypeToolService_ShouldHandleEmptyResults()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string>();
+            var filters = new List<string> { "NonExistent*" };
+            int pageNumber = 1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert: Expect no matching types.
+            Assert.That(response.TypeData.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TypeToolService_ShouldHandleCombinedFilters()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            // Multiple filters: one matching 'MyNamespace.MyType', another for 'DepNamespace.DepType'
+            var allowedNamespaces = new List<string>();
+            var filters = new List<string> { "My*", "Dep*" };
+            int pageNumber = 1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert: Expect exactly 2 matching types.
+            Assert.That(response.TypeData.Count, Is.EqualTo(2));
+        }
+        
+        [Test]
+        public void TypeToolService_ShouldReturnEmpty_WhenPageNumberIsNegative()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string> { "MyNamespace" };
+            var filters = new List<string> { "My*" };
+            int pageNumber = -1, pageSize = 10;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert
+            Assert.That(response.TypeData, Is.Empty);
+            Assert.That(response.CurrentPage, Is.EqualTo(pageNumber));
+        }
+
+        [Test]
+        public void TypeToolService_ShouldReturnEmpty_WhenPageSizeIsZero()
+        {
+            // Arrange
+            var service = new TypeToolService(_fakeScanner);
+            var allowedNamespaces = new List<string>();
+            var filters = new List<string>(); // no filter
+            int pageNumber = 1, pageSize = 0;
+
+            // Act
+            var response = service.GetTypes(DummyProjectPath, allowedNamespaces, filters, pageNumber, pageSize);
+
+            // Assert
+            Assert.That(response.TypeData, Is.Empty);
+            Assert.That(response.CurrentPage, Is.EqualTo(pageNumber));
+        }
     }
 }

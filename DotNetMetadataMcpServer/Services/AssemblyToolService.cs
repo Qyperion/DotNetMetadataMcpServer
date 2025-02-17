@@ -22,11 +22,11 @@ namespace DotNetMetadataMcpServer.Services
 
             if (filters.Any())
             {
-                var pattern = "^" + Regex.Escape(filters[0]).Replace("\\*", ".*") + "$";
-                assemblies = assemblies.Where(a => Regex.IsMatch(a, pattern, RegexOptions.IgnoreCase)).ToList();
+                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                assemblies = assemblies.Where(a => predicates.Any(predicate => predicate.Invoke(a))).ToList();
             }
-
-            var paged = PaginationHelper.Paginate(assemblies, pageNumber, pageSize, out var availablePages);
+            
+            var (paged, availablePages) = PaginationHelper.FilterAndPaginate(assemblies, _ => true, pageNumber, pageSize);
             return new AssemblyToolResponse
             {
                 AssemblyNames = paged,

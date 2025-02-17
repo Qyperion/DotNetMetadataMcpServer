@@ -62,8 +62,8 @@ namespace DotNetMetadataMcpServer.Services
             // Apply additional filter if provided.
             if (filters.Any())
             {
-                var pattern = "^" + Regex.Escape(filters[0]).Replace("\\*", ".*") + "$";
-                allNamespaces = allNamespaces.Where(n => Regex.IsMatch(n, pattern, RegexOptions.IgnoreCase));
+                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                allNamespaces = allNamespaces.Where(n => predicates.Any(predicate => predicate.Invoke(n)));
             }
 
             // Paginate the namespaces.
