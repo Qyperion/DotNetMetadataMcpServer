@@ -3,7 +3,6 @@ using DotNetMetadataMcpServer.Services;
 using DotNetMetadataMcpServer.ToolHandlers;
 using ModelContextProtocol.NET.Core.Models.Protocol.Common;
 using ModelContextProtocol.NET.Server.Builder;
-using ModelContextProtocol.NET.Server.Hosting;
 using Serilog;
 
 namespace DotNetMetadataMcpServer;
