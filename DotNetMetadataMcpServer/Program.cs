@@ -23,6 +23,8 @@ public class Program
             .WriteTo.File("log.txt")
             //.WriteTo.Console()
             .MinimumLevel.Debug()
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("RunId", Guid.NewGuid())
             .CreateLogger();
         Log.Logger = logger; 
         
@@ -41,7 +43,7 @@ public class Program
             
             builder.Services.AddScoped<MsBuildHelper>();
             builder.Services.AddScoped<ReflectionTypesCollector>();
-            builder.Services.AddScoped<DependenciesScanner>();
+            builder.Services.AddScoped(typeof(IDependenciesScanner), typeof(DependenciesScanner));
 
             builder.Services.AddScoped<AssemblyToolService>();
             builder.Services.AddScoped<NamespaceToolService>();
