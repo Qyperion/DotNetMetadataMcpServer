@@ -1,4 +1,5 @@
 using DotNetMetadataMcpServer;
+using DotNetMetadataMcpServer.Models;
 using DotNetMetadataMcpServer.Services;
 
 namespace MetadataExplorerTest.Services;
@@ -35,7 +36,7 @@ public class TypeToolServiceTests
         var response = _service.GetTypes(_testProjectPath, allowedNamespaces, new List<string>(), 1, 20);
         
         Assert.That(response.TypeData, Is.Not.Empty);
-        Assert.That(response.TypeData, Is.All.Matches<TypeInfoModel>(t => 
+        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t => 
             t.FullName.StartsWith(allowedNamespace)));
     }
 
@@ -48,7 +49,7 @@ public class TypeToolServiceTests
         var response = _service.GetTypes(_testProjectPath, new List<string>(), filters, 1, 20);
         
         Assert.That(response.TypeData, Is.Not.Empty);
-        Assert.That(response.TypeData, Is.All.Matches<TypeInfoModel>(t => 
+        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t => 
             t.FullName.EndsWith("Parameters")));
     }
 

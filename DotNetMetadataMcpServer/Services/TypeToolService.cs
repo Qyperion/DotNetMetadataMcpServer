@@ -38,7 +38,7 @@ namespace DotNetMetadataMcpServer.Services
                 allTypes = allTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
             }
             
-            var allTypesList = allTypes.ToList();
+            var allTypesList = allTypes.Select(TypeInfoModelMapper.ToSimpleTypeInfo).ToList();
             var (paged, availablePages) = PaginationHelper.FilterAndPaginate(allTypesList, _ => true, pageNumber, pageSize);
             
             return new TypeToolResponse
