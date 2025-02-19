@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Models;
 

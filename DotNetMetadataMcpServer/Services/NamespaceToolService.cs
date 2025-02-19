@@ -1,6 +1,5 @@
 using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Models;
-using System.Text.RegularExpressions;
 
 namespace DotNetMetadataMcpServer.Services
 {

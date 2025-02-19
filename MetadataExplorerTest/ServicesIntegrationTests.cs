@@ -9,8 +9,8 @@ public class ServicesIntegrationTests
 {
     private string _testProjectPath;
     private DependenciesScanner _scanner;
-    private static List<string> _foundAssemblies;
-    private static List<string> _foundNamespaces;
+    private static List<string> _foundAssemblies = null!;
+    private static List<string> _foundNamespaces = null!;
 
     [SetUp]
     public void Setup()
