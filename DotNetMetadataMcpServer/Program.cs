@@ -7,31 +7,42 @@ using Serilog;
 
 namespace DotNetMetadataMcpServer;
 
+// ReSharper disable once UnusedType.Global
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class Program
 {
-    public static async Task Main(string[] args)
+    /// <summary>
+    /// DotNet Metadata MCP Server
+    /// </summary>
+    /// <param name="homeEnvVariable">The home environment variable</param>
+    /// <returns></returns>
+    public static async Task<int> Main(string homeEnvVariable)
     {
-        // todo: add settings
+        if (string.IsNullOrWhiteSpace(homeEnvVariable))
+        {
+            Console.WriteLine("The --homeEnvVariable argument is required");
+            return 1;
+        }
+        
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .Build();
         
-        // todo: collect constructor parameter names
-        
-        //Environment.SetEnvironmentVariable("HOME", "/home/vladimir");
+        Environment.SetEnvironmentVariable("HOME", homeEnvVariable);
         
         var logger = new LoggerConfiguration()
-            .WriteTo.File("log.txt")
-            //.WriteTo.Console()
-            .MinimumLevel.Debug()
+            .ReadFrom.Configuration(configuration)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("RunId", Guid.NewGuid())
             .CreateLogger();
+        
         Log.Logger = logger; 
         
         try
         {
+            logger.Information("Starting the server");
+            
             var serverInfo = new Implementation
             {
                 Name = "DotNet Projects Types Explorer MCP Server",
@@ -59,17 +70,24 @@ public class Program
             var host = builder.Build();
             host.Start();
             await Task.Delay(-1);
+
+            return 0;
         }
         catch (Exception ex)
         {
+            logger.Error(ex, "An error occurred while running the server");
             Console.WriteLine(ex);
+            
+            return 1;
         }
         finally
         {
+            logger.Information("Shutting down the server");
             await Log.CloseAndFlushAsync();
         }
     }
     
+    // todo: refactor to use the new builder
     /*public static async Task Main(string[] args)
     {
         var logger = new LoggerConfiguration()
