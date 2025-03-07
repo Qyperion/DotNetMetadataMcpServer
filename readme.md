@@ -63,9 +63,11 @@ To use the .NET Types Explorer MCP Server with an AI agent, you need to configur
 
 Replace `/path/to/DotNetMetadataMcpServer` with the actual path to the published executable, and `/home/user` with your home directory.
 
-## Important Note
+## Important Limitations
 
-**The project must be built before scanning.** The server relies on compiled assemblies to extract type information, so make sure to build your project before using the tools.
+- **The project must be built before scanning.** The server relies on compiled assemblies to extract type information, so make sure to build your project before using the tools.
+- **The tool doesn't follow references to other projects.** It only inspects the specified project and its NuGet dependencies. If you need to analyze multiple projects, you'll need to scan each one separately.
+- **Performance may vary with large projects.** For very large codebases with many dependencies, consider using more specific filtering to improve performance.
 
 ## Usage
 
@@ -75,15 +77,62 @@ The server provides three main tools that can be used by AI agents:
 2. **NamespacesExplorer**: Retrieves namespaces from specified assemblies
 3. **NamespaceTypes**: Retrieves types from specified namespaces
 
-### Recommended Workflow for AI Agents
+### When to Use This Tool
 
-It is recommended to follow this step-by-step approach when working with the MCP server:
+AI coding assistants should use this MCP server in the following scenarios:
 
-1. Retrieve all the assemblies by the project file
-2. Determine assemblies in which you are interested
-3. Retrieve namespaces from those assemblies
-4. Retrieve types from namespaces that interest you
-5. Use filters only if you are overwhelmed by data amount or you are 100% sure which types you need
+- When you need to inspect the API of specific third-party libraries or NuGet packages
+- When you're uncertain about the available types, methods, or properties in a referenced library
+- When you need to explore a .NET codebase systematically from assemblies to namespaces to types
+- When you need detailed type information that isn't readily available in documentation
+
+**Important Limitations:**
+- The tool doesn't follow references to other projects - it only inspects the specified project and its NuGet dependencies
+- Base Class Library (BCL) types are typically well-documented elsewhere, so focus on third-party and project-specific types
+- The project must be built before scanning, as the tool relies on compiled assemblies
+
+### Recommended Workflow for AI Assistants
+
+AI assistants should follow this precise workflow when using the MCP server:
+
+1. **Retrieve all assemblies** by the project file
+   - Use the ReferencedAssembliesExplorer tool with the project file path
+   - Focus on third-party libraries, not BCL assemblies (System.*, Microsoft.*)
+
+2. **Identify relevant assemblies** for the current task
+   - Select assemblies that are likely to contain the types you need
+   - Skip well-known BCL assemblies unless specifically needed
+
+3. **Retrieve namespaces** from those assemblies
+   - Use the NamespacesExplorer tool with the project file path and selected assemblies
+   - This provides a map of the library's organization
+
+4. **Retrieve types** from namespaces that interest you
+   - Use the NamespaceTypes tool with the project file path and selected namespaces
+   - This gives you detailed type information including methods, properties, etc.
+
+5. **Use filtering sparingly**
+   - Only apply filters when you're overwhelmed by data or know exactly what you're looking for
+   - Wildcard filters (e.g., "*Controller", "*Service") can help narrow down results
+
+### Integrating with AI Assistant Rules
+
+It's strongly recommended to include these instructions in your AI assistant's rules files to ensure consistent and effective use of the tool. Add the workflow and usage guidelines to:
+
+- GitHub Copilot instructions
+- VS Code AI assistant custom modes
+- OpenAI Assistant instructions
+- Claude or other AI assistant configuration
+
+Example rule for AI assistants:
+```
+When working with .NET projects and you need to understand third-party library APIs:
+1. Use the .NET Types Explorer MCP Server to systematically explore the codebase
+2. Start with assemblies, then namespaces, then types - following the top-down approach
+3. Focus on third-party libraries and project-specific types, not BCL
+4. Remember the tool only inspects the specified project and its NuGet dependencies
+5. The project must be built before scanning
+```
 
 ## How It Works
 
