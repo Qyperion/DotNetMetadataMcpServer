@@ -175,7 +175,6 @@ public class ReflectionTypesCollector
                     ParameterType = GetFriendlyName(p.ParameterType),
                     IsOptional = p.IsOptional,
                     HasDefaultValue = p.HasDefaultValue,
-                    DefaultValue = p.HasDefaultValue ? p.DefaultValue : null,
                     Modifier = GetParameterModifier(p)
                 })
                 .ToList()

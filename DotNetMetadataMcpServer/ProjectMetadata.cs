@@ -66,7 +66,6 @@ public class ParameterInfoModel
     public string ParameterType { get; set; } = "";
     public bool IsOptional { get; set; }
     public bool HasDefaultValue { get; set; }
-    public object? DefaultValue { get; set; }
     public string Modifier { get; set; } = ""; // "ref", "out", "in", "params"
 }
 
