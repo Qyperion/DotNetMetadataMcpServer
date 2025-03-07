@@ -11,24 +11,25 @@ namespace DotNetMetadataMcpServer;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class Program
 {
-    /// <summary>
+    /*/// <summary>
     /// DotNet Metadata MCP Server
     /// </summary>
     /// <param name="homeEnvVariable">The home environment variable</param>
-    /// <returns></returns>
-    public static async Task<int> Main(string homeEnvVariable)
+    /// <returns></returns>*/
+    public static async Task<int> Main(string[] args)
     {
-        if (string.IsNullOrWhiteSpace(homeEnvVariable))
+        if (args.Length < 2 || string.IsNullOrWhiteSpace(args[0]) || args[0] != "--homeEnvVariable" || string.IsNullOrWhiteSpace(args[1]))
         {
-            Console.WriteLine("The --homeEnvVariable argument is required");
+            Console.WriteLine("The --homeEnvVariable argument with a value is required");
             return 1;
-        }
+        } 
         
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .Build();
         
+        var homeEnvVariable = args[1];
         Environment.SetEnvironmentVariable("HOME", homeEnvVariable);
         
         var logger = new LoggerConfiguration()
