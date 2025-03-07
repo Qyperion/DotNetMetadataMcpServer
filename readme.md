@@ -10,6 +10,10 @@ It provides a structured way to explore assemblies, namespaces, and types in .NE
 The server uses reflection to extract detailed type information from compiled .NET assemblies, including classes, interfaces, methods, properties, fields, and events. 
 This information is then made available through a set of tools that can be used by AI agents to explore the codebase in a systematic way.
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. 
+
 ## Features
 
 - **Assembly Exploration**: Retrieve a list of all assemblies referenced by a .NET project
@@ -24,6 +28,13 @@ This information is then made available through a set of tools that can be used 
   - Events with handler types
 - **Filtering**: Apply wildcard filters to narrow down results
 - **Pagination**: Handle large result sets with built-in pagination
+
+## Roadmap
+
+- [ ] Add NuGet integration to provide information about actual package versions
+- [ ] Try to switch to the mcpdotnet [library](https://github.com/PederHP/mcpdotnet)
+- [ ] Add dependency graph building capabilities
+- [ ] Improve multi-project scenario
 
 ## Prerequisites
 
@@ -67,7 +78,6 @@ Replace `/path/to/DotNetMetadataMcpServer` with the actual path to the published
 
 - **The project must be built before scanning.** The server relies on compiled assemblies to extract type information, so make sure to build your project before using the tools.
 - **The tool doesn't follow references to other projects.** It only inspects the specified project and its NuGet dependencies. If you need to analyze multiple projects, you'll need to scan each one separately.
-- **Performance may vary with large projects.** For very large codebases with many dependencies, consider using more specific filtering to improve performance.
 
 ## Usage
 
@@ -77,62 +87,32 @@ The server provides three main tools that can be used by AI agents:
 2. **NamespacesExplorer**: Retrieves namespaces from specified assemblies
 3. **NamespaceTypes**: Retrieves types from specified namespaces
 
-### When to Use This Tool
+This tool has been tested with the [Roo Code Visual Studio extension](https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline), an AI coding assistant that supports the Model Context Protocol. You can find more information about Roo Code on [GitHub](https://github.com/RooVetGit/Roo-Code?tab=readme-ov-file).
 
-AI coding assistants should use this MCP server in the following scenarios:
+> It's possible to use `.clinerules` file to instruct your codding assistant to use the MCP server.
 
-- When you need to inspect the API of specific third-party libraries or NuGet packages
-- When you're uncertain about the available types, methods, or properties in a referenced library
-- When you need to explore a .NET codebase systematically from assemblies to namespaces to types
-- When you need detailed type information that isn't readily available in documentation
 
-**Important Limitations:**
-- The tool doesn't follow references to other projects - it only inspects the specified project and its NuGet dependencies
-- Base Class Library (BCL) types are typically well-documented elsewhere, so focus on third-party and project-specific types
-- The project must be built before scanning, as the tool relies on compiled assemblies
+## AI Code Assistant Instructions
 
-### Recommended Workflow for AI Assistants
+If you work with .NET projects that have NuGet package references and need to write code using those packages, you should explore the API of those packages systematically using the Dotnet Type Explorer MCP server. This is especially important when you're not familiar with the package's API or when documentation is limited.
 
-AI assistants should follow this precise workflow when using the MCP server:
+When working with a .NET project:
 
-1. **Retrieve all assemblies** by the project file
-   - Use the ReferencedAssembliesExplorer tool with the project file path
-   - Focus on third-party libraries, not BCL assemblies (System.*, Microsoft.*)
+1. First, make sure the project is built. This tool relies on compiled assemblies to extract type information.
 
-2. **Identify relevant assemblies** for the current task
-   - Select assemblies that are likely to contain the types you need
-   - Skip well-known BCL assemblies unless specifically needed
+2. Start by retrieving all assemblies referenced by the project file using the ReferencedAssembliesExplorer tool. This gives you a list of all available assemblies.
 
-3. **Retrieve namespaces** from those assemblies
-   - Use the NamespacesExplorer tool with the project file path and selected assemblies
-   - This provides a map of the library's organization
+3. Focus on third-party libraries and NuGet packages, not the Base Class Library (BCL) types like System.* or Microsoft.* which are well-documented elsewhere.
 
-4. **Retrieve types** from namespaces that interest you
-   - Use the NamespaceTypes tool with the project file path and selected namespaces
-   - This gives you detailed type information including methods, properties, etc.
+4. Once you've identified the relevant assemblies, use the NamespacesExplorer tool to discover the namespaces within those assemblies. This helps you understand how the library is organized.
 
-5. **Use filtering sparingly**
-   - Only apply filters when you're overwhelmed by data or know exactly what you're looking for
-   - Wildcard filters (e.g., "*Controller", "*Service") can help narrow down results
+5. After identifying the relevant namespaces, use the NamespaceTypes tool to retrieve detailed information about the types within those namespaces. This includes methods, properties, fields, events, and more.
 
-### Integrating with AI Assistant Rules
+6. Only use filtering when you're overwhelmed by the amount of data or when you know exactly what you're looking for.
 
-It's strongly recommended to include these instructions in your AI assistant's rules files to ensure consistent and effective use of the tool. Add the workflow and usage guidelines to:
+Remember that this tool only inspects the specified project and its NuGet dependencies. It doesn't follow references to other projects in the solution. If you need to analyze multiple projects, you'll need to scan each one separately.
 
-- GitHub Copilot instructions
-- VS Code AI assistant custom modes
-- OpenAI Assistant instructions
-- Claude or other AI assistant configuration
-
-Example rule for AI assistants:
-```
-When working with .NET projects and you need to understand third-party library APIs:
-1. Use the .NET Types Explorer MCP Server to systematically explore the codebase
-2. Start with assemblies, then namespaces, then types - following the top-down approach
-3. Focus on third-party libraries and project-specific types, not BCL
-4. Remember the tool only inspects the specified project and its NuGet dependencies
-5. The project must be built before scanning
-```
+This top-down approach (assemblies → namespaces → types) is the most efficient way to explore and understand .NET libraries when you need to write code that uses them. It's particularly valuable for third-party libraries where the API might not be immediately obvious or well-documented.
 
 ## How It Works
 
@@ -297,53 +277,148 @@ Retrieves types from specified namespaces supporting filters and pagination.
 
 ## Example Usage Scenario
 
-Here's an example of how an AI agent might use the .NET Types Explorer MCP Server:
+Here's an example of how an AI agent might use the .NET Types Explorer MCP Server to explore a UI framework API:
 
-1. **Retrieve Assemblies**:
+1. **Retrieve Assemblies with Filtering**:
    ```json
    {
-     "ProjectFileAbsolutePath": "/path/to/project.csproj"
+     "ProjectFileAbsolutePath": "/home/user/Projects/MyApp/MyApp.csproj",
+     "PageNumber": 1,
+     "FullTextFiltersWithWildCardSupport": ["Avalonia*"]
    }
    ```
 
-2. **Retrieve Namespaces** from a specific assembly:
+   Response:
    ```json
    {
-     "ProjectFileAbsolutePath": "/path/to/project.csproj",
-     "AssemblyNames": ["MyAssembly"]
+     "AssemblyNames": [
+       "Avalonia",
+       "Avalonia.Controls.ColorPicker",
+       "Avalonia.Controls.DataGrid",
+       "Avalonia.Desktop",
+       "Avalonia.Diagnostics",
+       "Avalonia.Fonts.Inter",
+       "Avalonia.FreeDesktop",
+       "Avalonia.Native",
+       "Avalonia.ReactiveUI",
+       "Avalonia.Remote.Protocol"
+     ],
+     "CurrentPage": 1,
+     "AvailablePages": [1, 2]
    }
    ```
 
-3. **Retrieve Types** from a specific namespace:
+2. **Retrieve Namespaces with Targeted Filtering**:
    ```json
    {
-     "ProjectFileAbsolutePath": "/path/to/project.csproj",
-     "Namespaces": ["MyAssembly.MyNamespace"]
+     "ProjectFileAbsolutePath": "/home/user/Projects/MyApp/MyApp.csproj",
+     "AssemblyNames": ["Avalonia"],
+     "PageNumber": 1,
+     "FullTextFiltersWithWildCardSupport": ["*Media*", "*Image*"]
    }
    ```
 
-4. **Apply Filters** to find specific types:
+   Response:
    ```json
    {
-     "ProjectFileAbsolutePath": "/path/to/project.csproj",
-     "Namespaces": ["MyAssembly.MyNamespace"],
-     "FullTextFiltersWithWildCardSupport": ["*Controller", "*Service"]
+     "Namespaces": [
+       "Avalonia.Media",
+       "Avalonia.Media.Transformation",
+       "Avalonia.Media.TextFormatting",
+       "Avalonia.Media.TextFormatting.Unicode",
+       "Avalonia.Media.Immutable",
+       "Avalonia.Media.Imaging",
+       "Avalonia.Media.Fonts"
+     ],
+     "CurrentPage": 1,
+     "AvailablePages": [1]
    }
    ```
 
-## Roadmap
+3. **Retrieve Types from a Specific Namespace**:
+   ```json
+   {
+     "ProjectFileAbsolutePath": "/home/user/Projects/MyApp/MyApp.csproj",
+     "Namespaces": ["Avalonia.Media.Imaging"],
+     "PageNumber": 1,
+     "FullTextFiltersWithWildCardSupport": []
+   }
+   ```
 
-- Switch to a library-based approach for better integration
-- Add NuGet integration to provide information about actual package versions
-- Improve performance for large projects
-- Add support for more detailed type information
-- Enhance filtering capabilities
-- Add support for method body analysis
+   Response (partial):
+   ```json
+   {
+     "TypeData": [
+       {
+         "FullName": "Avalonia.Media.Imaging.Bitmap",
+         "Implements": [
+           "IBitmap",
+           "IImage",
+           "IDisposable",
+           "IImageBrushSource"
+         ],
+         "Constructors": [
+           "(String fileName)",
+           "(Stream stream)",
+           "(PixelFormat format, AlphaFormat alphaFormat, IntPtr data, PixelSize size, Vector dpi, Int32 stride)"
+         ],
+         "Methods": [
+           "static Avalonia.Media.Imaging.Bitmap DecodeToWidth(System.IO.Stream stream, System.Int32 width, Avalonia.Media.Imaging.BitmapInterpolationMode? interpolationMode = null)",
+           "static Avalonia.Media.Imaging.Bitmap DecodeToHeight(System.IO.Stream stream, System.Int32 height, Avalonia.Media.Imaging.BitmapInterpolationMode? interpolationMode = null)",
+           "Avalonia.Media.Imaging.Bitmap CreateScaledBitmap(Avalonia.PixelSize destinationSize, Avalonia.Media.Imaging.BitmapInterpolationMode? interpolationMode = null)",
+           "virtual System.Void Dispose()"
+         ],
+         "Properties": [
+           "virtual Avalonia.Vector Dpi { get; }",
+           "virtual Avalonia.Size Size { get; }",
+           "virtual Avalonia.PixelSize PixelSize { get; }"
+         ]
+       }
+     ],
+     "CurrentPage": 1,
+     "AvailablePages": [1, 2]
+   }
+   ```
 
-## Contributing
+4. **Apply Specific Filters to Find Related Types**:
+   ```json
+   {
+     "ProjectFileAbsolutePath": "/home/user/Projects/MyApp/MyApp.csproj",
+     "Namespaces": ["Avalonia.Platform"],
+     "PageNumber": 1,
+     "FullTextFiltersWithWildCardSupport": ["*Framebuffer*", "*Pixel*"]
+   }
+   ```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+   Response:
+   ```json
+   {
+     "TypeData": [
+       {
+         "FullName": "Avalonia.Platform.ILockedFramebuffer",
+         "Implements": ["IDisposable"],
+         "Methods": [
+           "abstract System.IntPtr get_Address()",
+           "abstract Avalonia.PixelSize get_Size()",
+           "abstract System.Int32 get_RowBytes()",
+           "abstract Avalonia.Vector get_Dpi()",
+           "abstract Avalonia.Platform.PixelFormat get_Format()"
+         ],
+         "Properties": [
+           "abstract System.IntPtr Address { get; }",
+           "abstract Avalonia.PixelSize Size { get; }",
+           "abstract System.Int32 RowBytes { get; }",
+           "abstract Avalonia.Vector Dpi { get; }",
+           "abstract Avalonia.Platform.PixelFormat Format { get; }"
+         ]
+       }
+     ],
+     "CurrentPage": 1,
+     "AvailablePages": [1]
+   }
+   ```
+  
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
