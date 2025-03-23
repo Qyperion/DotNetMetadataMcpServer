@@ -8,6 +8,9 @@
         <RootNamespace>DotNetMetadataMcpServer</RootNamespace>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>CS1591</NoWarn> <!-- Disable warning CS1591: Missing XML comment for publicly visible type or member -->
+        <VersionPrefix>1.0</VersionPrefix>
+        <AssemblyVersion>$(VersionPrefix).1</AssemblyVersion>
+        <FileVersion>$(VersionPrefix).1</FileVersion>
     </PropertyGroup>
 
     <ItemGroup>

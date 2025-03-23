@@ -1,0 +1,170 @@
+name: Publish DotNetMetadataMcpServer
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionOverride:
+        description: 'Override version (leave empty to use 1.0.0 with auto-incremented patch)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Set version
+        id: set-version
+        run: |
+          # Extract version prefix from project file
+          VERSION_PREFIX=$(grep -oP '<VersionPrefix>\K[^<]+' DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj)
+          
+          if [ -z "$VERSION_PREFIX" ]; then
+            # Default version prefix if not found in project file
+            VERSION_PREFIX="1.0.0"
+          fi
+          
+          if [ -n "${{ github.event.inputs.versionOverride }}" ]; then
+            # Use override version if provided
+            VERSION="${{ github.event.inputs.versionOverride }}"
+          else
+            # Use GitHub run number as patch version
+            VERSION="${VERSION_PREFIX}.${{ github.run_number }}"
+          fi
+          
+          echo "Using version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  build-windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: |
+          dotnet publish DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:PublishReadyToRun=true /p:DebugType=None /p:DebugSymbols=false /p:Version=${{ needs.build.outputs.version }} /p:AssemblyVersion=${{ needs.build.outputs.version }}
+
+      - name: Create zip archive
+        run: |
+          $VERSION = "${{ needs.build.outputs.version }}"
+          $ZIP_NAME = "DotNetMetadataMcpServer-windows-x64-v$VERSION.zip"
+          Compress-Archive -Path DotNetMetadataMcpServer/bin/Release/net9.0/win-x64/publish/* -DestinationPath $ZIP_NAME
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DotNetMetadataMcpServer-windows-x64
+          path: DotNetMetadataMcpServer-windows-x64-v${{ needs.build.outputs.version }}.zip
+
+  build-linux:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: |
+          dotnet publish DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:PublishReadyToRun=true /p:DebugType=None /p:DebugSymbols=false /p:Version=${{ needs.build.outputs.version }} /p:AssemblyVersion=${{ needs.build.outputs.version }}
+
+      - name: Create zip archive
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          ZIP_NAME="DotNetMetadataMcpServer-linux-x64-v$VERSION.zip"
+          cd DotNetMetadataMcpServer/bin/Release/net9.0/linux-x64/publish/
+          chmod +x DotNetMetadataMcpServer
+          zip -r ../../../../../../$ZIP_NAME *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DotNetMetadataMcpServer-linux-x64
+          path: DotNetMetadataMcpServer-linux-x64-v${{ needs.build.outputs.version }}.zip
+
+  build-macos:
+    needs: build
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        architecture: [osx-x64, osx-arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: |
+          dotnet publish DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj -c Release -r ${{ matrix.architecture }} --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:PublishReadyToRun=true /p:DebugType=None /p:DebugSymbols=false /p:Version=${{ needs.build.outputs.version }} /p:AssemblyVersion=${{ needs.build.outputs.version }}
+
+      - name: Create zip archive
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          ZIP_NAME="DotNetMetadataMcpServer-${{ matrix.architecture }}-v$VERSION.zip"
+          cd DotNetMetadataMcpServer/bin/Release/net9.0/${{ matrix.architecture }}/publish/
+          zip -r ../../../../../../$ZIP_NAME *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DotNetMetadataMcpServer-${{ matrix.architecture }}
+          path: DotNetMetadataMcpServer-${{ matrix.architecture }}-v${{ needs.build.outputs.version }}.zip
+
+  create-release:
+    needs: [build, build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: Release v${{ needs.build.outputs.version }}
+          files: |
+            artifacts/DotNetMetadataMcpServer-windows-x64/DotNetMetadataMcpServer-windows-x64-v${{ needs.build.outputs.version }}.zip
+            artifacts/DotNetMetadataMcpServer-linux-x64/DotNetMetadataMcpServer-linux-x64-v${{ needs.build.outputs.version }}.zip
+            artifacts/DotNetMetadataMcpServer-osx-x64/DotNetMetadataMcpServer-osx-x64-v${{ needs.build.outputs.version }}.zip
+            artifacts/DotNetMetadataMcpServer-osx-arm64/DotNetMetadataMcpServer-osx-arm64-v${{ needs.build.outputs.version }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
