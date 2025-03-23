@@ -26,12 +26,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
   - Properties with types and accessors
   - Fields with types and modifiers
   - Events with handler types
+- **NuGet Package Search**: Search for NuGet packages on nuget.org with filtering and pagination
+- **NuGet Package Version Information**: Retrieve version history and dependency information for specific NuGet packages
 - **Filtering**: Apply wildcard filters to narrow down results
 - **Pagination**: Handle large result sets with built-in pagination
 
 ## Roadmap
 
-- [ ] Add NuGet integration to provide information about actual package versions
+- [x] Add NuGet integration to provide information about actual package versions
 - [ ] Try to switch to the mcpdotnet [library](https://github.com/PederHP/mcpdotnet)
 - [ ] Add dependency graph building capabilities
 - [ ] Improve multi-project scenario
@@ -81,11 +83,13 @@ Replace `/path/to/DotNetMetadataMcpServer` with the actual path to the published
 
 ## Usage
 
-The server provides three main tools that can be used by AI agents:
+The server provides five main tools that can be used by AI agents:
 
 1. **ReferencedAssembliesExplorer**: Retrieves referenced assemblies from a .NET project
 2. **NamespacesExplorer**: Retrieves namespaces from specified assemblies
 3. **NamespaceTypes**: Retrieves types from specified namespaces
+4. **NuGetPackageSearch**: Searches for NuGet packages on nuget.org with filtering and pagination
+5. **NuGetPackageVersions**: Retrieves version history and dependency information for specific NuGet packages
 
 This tool has been tested with the [Roo Code Visual Studio extension](https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline), an AI coding assistant that supports the Model Context Protocol. You can find more information about Roo Code on [GitHub](https://github.com/RooVetGit/Roo-Code?tab=readme-ov-file).
 
@@ -106,13 +110,19 @@ When working with a .NET project:
 
 4. Once you've identified the relevant assemblies, use the NamespacesExplorer tool to discover the namespaces within those assemblies. This helps you understand how the library is organized.
 
-5. After identifying the relevant namespaces, use the NamespaceTypes tool to retrieve detailed information about the types within those namespaces. This includes methods, properties, fields, events, and more.
+5. After identifying the relevant namespaces, use the NamespaceTypes tool to retrieve detailed information about the types within those namespaces in which you are interested in. This includes methods, properties, fields, events, and more.
 
 6. Only use filtering when you're overwhelmed by the amount of data or when you know exactly what you're looking for.
 
+7. If you need to find specific NuGet packages or explore their versions and dependencies, use the NuGetPackageSearch tool to search for packages by name or keywords.
+
+8. When you need detailed information about a specific NuGet package, including its version history and dependencies, use the NuGetPackageVersions tool. This is particularly useful when you need to understand compatibility requirements or dependency chains.
+
+9. Use the filtering capabilities of the NuGet tools to narrow down results when searching for specific versions or packages with particular naming patterns.
+
 Remember that this tool only inspects the specified project and its NuGet dependencies. It doesn't follow references to other projects in the solution. If you need to analyze multiple projects, you'll need to scan each one separately.
 
-This top-down approach (assemblies → namespaces → types) is the most efficient way to explore and understand .NET libraries when you need to write code that uses them. It's particularly valuable for third-party libraries where the API might not be immediately obvious or well-documented.
+This top-down approach (assemblies → namespaces → types) is the most efficient way to explore and understand .NET libraries when you need to write code that uses them. It's particularly valuable for third-party libraries where the API might not be immediately obvious or well-documented. The NuGet tools complement this approach by providing direct access to package information without requiring the packages to be already referenced in the project.
 
 ## How It Works
 
@@ -275,6 +285,124 @@ Retrieves types from specified namespaces supporting filters and pagination.
 }
 ```
 
+### NuGetPackageSearch
+
+Searches for NuGet packages on nuget.org with support for filtering and pagination.
+
+**Input Schema:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "SearchQuery": {
+      "type": "string"
+    },
+    "IncludePrerelease": {
+      "type": "boolean"
+    },
+    "PageNumber": {
+      "type": "integer"
+    },
+    "FullTextFiltersWithWildCardSupport": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "SearchQuery"
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "Packages": [
+    {
+      "Id": "Newtonsoft.Json",
+      "Version": "13.0.3",
+      "Description": "Json.NET is a popular high-performance JSON framework for .NET",
+      "Authors": "James Newton-King",
+      "DownloadCount": 1000000,
+      "Published": "2023-03-08T00:00:00Z"
+    },
+    ...
+  ],
+  "CurrentPage": 1,
+  "AvailablePages": [1, 2, ...]
+}
+```
+
+### NuGetPackageVersions
+
+Retrieves version history and dependency information for a specific NuGet package.
+
+**Input Schema:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "PackageId": {
+      "type": "string"
+    },
+    "IncludePrerelease": {
+      "type": "boolean"
+    },
+    "PageNumber": {
+      "type": "integer"
+    },
+    "FullTextFiltersWithWildCardSupport": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "PackageId"
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "PackageId": "Newtonsoft.Json",
+  "Versions": [
+    {
+      "Id": "Newtonsoft.Json",
+      "Version": "13.0.3",
+      "Description": "Json.NET is a popular high-performance JSON framework for .NET",
+      "Authors": "James Newton-King",
+      "DownloadCount": 1000000,
+      "Published": "2023-03-08T00:00:00Z",
+      "DependencyGroups": [
+        {
+          "TargetFramework": ".NETStandard2.0",
+          "Dependencies": [
+            {
+              "Id": "System.Text.Json",
+              "VersionRange": "6.0.0"
+            }
+          ]
+        }
+      ]
+    },
+    ...
+  ],
+  "CurrentPage": 1,
+  "AvailablePages": [1, 2, ...]
+}
+```
+
 ## Example Usage Scenario
 
 Here's an example of how an AI agent might use the .NET Types Explorer MCP Server to explore a UI framework API:
@@ -418,6 +546,186 @@ Here's an example of how an AI agent might use the .NET Types Explorer MCP Serve
    }
    ```
   
+## NuGet Package Examples
+
+Here are examples of how an AI agent might use the NuGet tools to explore package information:
+
+1. **Search for NuGet Packages**:
+  ```json
+  {
+    "SearchQuery": "EntityFrameworkCore",
+    "IncludePrerelease": false,
+    "PageNumber": 1,
+    "FullTextFiltersWithWildCardSupport": []
+  }
+  ```
+
+  Response:
+  ```json
+  {
+    "Packages": [
+      {
+        "Id": "Microsoft.EntityFrameworkCore",
+        "Version": "7.0.0",
+        "Description": "Entity Framework Core is a lightweight and extensible version of the popular Entity Framework data access technology.",
+        "Authors": "Microsoft",
+        "DownloadCount": 42000000,
+        "Published": "2022-11-08T00:00:00Z"
+      },
+      {
+        "Id": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "7.0.0",
+        "Description": "Microsoft SQL Server database provider for Entity Framework Core.",
+        "Authors": "Microsoft",
+        "DownloadCount": 38000000,
+        "Published": "2022-11-08T00:00:00Z"
+      }
+    ],
+    "CurrentPage": 1,
+    "AvailablePages": [1, 2, 3, 4, 5]
+  }
+  ```
+
+2. **Search with Filtering**:
+  ```json
+  {
+    "SearchQuery": "Json",
+    "IncludePrerelease": false,
+    "PageNumber": 1,
+    "FullTextFiltersWithWildCardSupport": ["Newtonsoft*"]
+  }
+  ```
+
+  Response:
+  ```json
+  {
+    "Packages": [
+      {
+        "Id": "Newtonsoft.Json",
+        "Version": "13.0.3",
+        "Description": "Json.NET is a popular high-performance JSON framework for .NET",
+        "Authors": "James Newton-King",
+        "DownloadCount": 1250000000,
+        "Published": "2023-03-08T00:00:00Z"
+      },
+      {
+        "Id": "Newtonsoft.Json.Bson",
+        "Version": "1.0.2",
+        "Description": "Json.NET BSON adds support for reading and writing BSON",
+        "Authors": "James Newton-King",
+        "DownloadCount": 120000000,
+        "Published": "2020-01-01T00:00:00Z"
+      }
+    ],
+    "CurrentPage": 1,
+    "AvailablePages": [1]
+  }
+  ```
+
+3. **Get Package Version Information**:
+  ```json
+  {
+    "PackageId": "Newtonsoft.Json",
+    "IncludePrerelease": false,
+    "PageNumber": 1,
+    "FullTextFiltersWithWildCardSupport": []
+  }
+  ```
+
+  Response:
+  ```json
+  {
+    "PackageId": "Newtonsoft.Json",
+    "Versions": [
+      {
+        "Id": "Newtonsoft.Json",
+        "Version": "13.0.3",
+        "Description": "Json.NET is a popular high-performance JSON framework for .NET",
+        "Authors": "James Newton-King",
+        "DownloadCount": 1250000000,
+        "Published": "2023-03-08T00:00:00Z",
+        "DependencyGroups": [
+          {
+            "TargetFramework": ".NETStandard2.0",
+            "Dependencies": []
+          },
+          {
+            "TargetFramework": ".NETFramework4.5",
+            "Dependencies": []
+          }
+        ]
+      },
+      {
+        "Id": "Newtonsoft.Json",
+        "Version": "13.0.2",
+        "Description": "Json.NET is a popular high-performance JSON framework for .NET",
+        "Authors": "James Newton-King",
+        "DownloadCount": 980000000,
+        "Published": "2022-11-24T00:00:00Z",
+        "DependencyGroups": [
+          {
+            "TargetFramework": ".NETStandard2.0",
+            "Dependencies": []
+          },
+          {
+            "TargetFramework": ".NETFramework4.5",
+            "Dependencies": []
+          }
+        ]
+      }
+    ],
+    "CurrentPage": 1,
+    "AvailablePages": [1, 2, 3, 4, 5]
+  }
+  ```
+
+4. **Get Specific Package Version with Filtering**:
+  ```json
+  {
+    "PackageId": "Microsoft.EntityFrameworkCore",
+    "IncludePrerelease": false,
+    "PageNumber": 1,
+    "FullTextFiltersWithWildCardSupport": ["7.0.0"]
+  }
+  ```
+
+  Response:
+  ```json
+  {
+    "PackageId": "Microsoft.EntityFrameworkCore",
+    "Versions": [
+      {
+        "Id": "Microsoft.EntityFrameworkCore",
+        "Version": "7.0.0",
+        "Description": "Entity Framework Core is a lightweight and extensible version of the popular Entity Framework data access technology.",
+        "Authors": "Microsoft",
+        "DownloadCount": 42000000,
+        "Published": "2022-11-08T00:00:00Z",
+        "DependencyGroups": [
+          {
+            "TargetFramework": "net6.0",
+            "Dependencies": [
+              {
+                "Id": "Microsoft.Extensions.Caching.Memory",
+                "VersionRange": "7.0.0"
+              },
+              {
+                "Id": "Microsoft.Extensions.DependencyInjection",
+                "VersionRange": "7.0.0"
+              },
+              {
+                "Id": "Microsoft.Extensions.Logging",
+                "VersionRange": "7.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "CurrentPage": 1,
+    "AvailablePages": [1]
+  }
+  ```
 
 ## License
 

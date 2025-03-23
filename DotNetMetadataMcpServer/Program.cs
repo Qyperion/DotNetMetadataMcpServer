@@ -62,11 +62,14 @@ public class Program
             builder.Services.AddScoped<AssemblyToolService>();
             builder.Services.AddScoped<NamespaceToolService>();
             builder.Services.AddScoped<TypeToolService>();
+            builder.Services.AddScoped<NuGetToolService>();
             
 
             builder.Tools.AddHandler<AssemblyToolHandler>();
             builder.Tools.AddHandler<NamespaceToolHandler>();
             builder.Tools.AddHandler<TypeToolHandler>();
+            builder.Tools.AddHandler<NuGetPackageSearchToolHandler>();
+            builder.Tools.AddHandler<NuGetPackageVersionsToolHandler>();
             
             var host = builder.Build();
             host.Start();

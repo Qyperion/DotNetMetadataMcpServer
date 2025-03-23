@@ -1,5 +1,6 @@
 using DotNetMetadataMcpServer;
 using DotNetMetadataMcpServer.Services;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace MetadataExplorerTest;
@@ -11,6 +12,7 @@ public class ServicesIntegrationTests
     private DependenciesScanner _scanner;
     private static List<string> _foundAssemblies = null!;
     private static List<string> _foundNamespaces = null!;
+    private Mock<ILogger<NuGetToolService>> _nugetLoggerMock;
 
     [SetUp]
     public void Setup()
@@ -23,6 +25,7 @@ public class ServicesIntegrationTests
             Assert.Inconclusive("Test project file not found: " + _testProjectPath);
         
         _scanner = new DependenciesScanner(new MsBuildHelper(), new ReflectionTypesCollector());
+        _nugetLoggerMock = new Mock<ILogger<NuGetToolService>>();
     }
     
     [TearDown]
@@ -54,7 +57,7 @@ public class ServicesIntegrationTests
         Assert.That(response.Namespaces, Is.Not.Null);
         Assert.That(response.Namespaces.Count, Is.GreaterThan(0));
         
-        _foundNamespaces = response.Namespaces.Take(1).Concat(response.Namespaces.TakeLast(1)).ToList(); 
+        _foundNamespaces = response.Namespaces.Take(1).Concat(response.Namespaces.TakeLast(1)).ToList();
     }
 
     [Test, Order(3)]
@@ -67,6 +70,32 @@ public class ServicesIntegrationTests
 
         Assert.That(response.TypeData, Is.Not.Null);
         Assert.That(response.TypeData.Count, Is.GreaterThan(0));
+    }
+    
+    [Test, Order(4)]
+    public async Task NuGetToolService_SearchPackages_ShouldReturnResults()
+    {
+        var service = new NuGetToolService(_nugetLoggerMock.Object);
+        var response = await service.SearchPackagesAsync("Newtonsoft.Json", new List<string>(), false, 1, 10);
+
+        Assert.That(response.Packages, Is.Not.Null);
+        Assert.That(response.Packages.Count, Is.GreaterThan(0));
+        Assert.That(response.Packages, Has.Some.Matches<DotNetMetadataMcpServer.Models.NuGetPackageInfo>(
+            p => p.Id.Contains("Newtonsoft.Json", StringComparison.OrdinalIgnoreCase)));
+    }
+    
+    [Test, Order(5)]
+    public async Task NuGetToolService_GetPackageVersions_ShouldReturnVersionsWithDependencies()
+    {
+        var service = new NuGetToolService(_nugetLoggerMock.Object);
+        var response = await service.GetPackageVersionsAsync("Newtonsoft.Json", new List<string>(), false, 1, 10);
+
+        Assert.That(response.Versions, Is.Not.Null);
+        Assert.That(response.Versions.Count, Is.GreaterThan(0));
+        Assert.That(response.PackageId, Is.EqualTo("Newtonsoft.Json"));
+        
+        // Note: Not all package versions may have dependency information
+        // so we don't assert on dependency groups
     }
 }
 

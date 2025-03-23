@@ -7,6 +7,7 @@
         <UserSecretsId>dotnet-DotNetMcpServer-4c45ce3c-4723-4809-a251-648374d0349a</UserSecretsId>
         <RootNamespace>DotNetMetadataMcpServer</RootNamespace>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>CS1591</NoWarn> <!-- Disable warning CS1591: Missing XML comment for publicly visible type or member -->
     </PropertyGroup>
 
     <ItemGroup>
@@ -19,6 +20,10 @@
 
         <PackageReference Include="DependencyGraph.Core" Version="1.0.1" />
         <PackageReference Include="ModelContextProtocol.NET.Server.Hosting" Version="0.3.2-alpha" />
+        
+        <PackageReference Include="NuGet.Configuration" Version="6.13.2" />
+        <PackageReference Include="NuGet.Protocol" Version="6.13.2" />
+        <PackageReference Include="NuGet.Versioning" Version="6.13.2" />
         
         <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
