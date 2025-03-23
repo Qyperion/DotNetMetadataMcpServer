@@ -246,7 +246,7 @@ public class ReflectionTypesCollector
     }
 
     /// <summary>
-    /// Generates a human-readable type name (considering generics: List<int>, Dictionary<string, List<int>>).
+    /// Generates a human-readable type name (considering generics: List&lt;int&gt;, Dictionary&lt;string, List&lt;int&gt;&gt;).
     /// Without full namespace, only short name.
     /// If namespace is needed, it can be improved.
     /// </summary>

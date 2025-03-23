@@ -90,6 +90,7 @@ public class MicrosoftLoggerAdapter : NuGet.Common.ILogger
             NuGet.Common.LogLevel.Minimal => Microsoft.Extensions.Logging.LogLevel.Information,
             NuGet.Common.LogLevel.Warning => Microsoft.Extensions.Logging.LogLevel.Warning,
             NuGet.Common.LogLevel.Error => Microsoft.Extensions.Logging.LogLevel.Error,
+            _ => Microsoft.Extensions.Logging.LogLevel.Information // Default case for any future enum values
         };
     }
 }
