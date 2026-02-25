@@ -41,7 +41,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Prerequisites
 
-- .NET 9.0 SDK or later
+- .NET 10.0 SDK or later
 - A .NET project that you want to explore
 
 ## Configuration

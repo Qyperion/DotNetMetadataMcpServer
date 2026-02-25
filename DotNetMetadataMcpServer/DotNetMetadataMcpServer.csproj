@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-DotNetMcpServer-4c45ce3c-4723-4809-a251-648374d0349a</UserSecretsId>
@@ -15,25 +15,24 @@
 
     <ItemGroup>
         <!--<PackageReference Include="Microsoft.Build" Version="17.12.6" ExcludeAssets="runtime" />-->
-        <PackageReference Include="Microsoft.Build.Locator" Version="1.7.8" />
+        <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
         
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0"/>
-        <!--<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />-->
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3"/>
 
-        <PackageReference Include="DependencyGraph.Core" Version="1.0.1" />
+        <PackageReference Include="DependencyGraph.Core" Version="2.0.0" />
         
-        <PackageReference Include="NuGet.Configuration" Version="6.13.2" />
-        <PackageReference Include="NuGet.Protocol" Version="6.13.2" />
-        <PackageReference Include="NuGet.Versioning" Version="6.13.2" />
+        <PackageReference Include="NuGet.Protocol" Version="6.14.0" />
+        <PackageReference Include="NuGet.Versioning" Version="6.14.0" />
+        <PackageReference Include="NuGet.Configuration" Version="6.14.0" />
+		<PackageReference Include="NuGet.Frameworks" Version="6.14.0" ExcludeAssets="runtime" PrivateAssets="all" />
         
-        <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
-        <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
-        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
-        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+        <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
+        <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
         
-        <PackageReference Include="ModelContextProtocol" Version="0.4.0-preview.1" />
+        <PackageReference Include="ModelContextProtocol" Version="1.0.0-rc.1" />
     </ItemGroup>
 
 </Project>

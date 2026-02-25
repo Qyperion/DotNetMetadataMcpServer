@@ -14,6 +14,7 @@ namespace DotNetMetadataMcpServer.Services
         private readonly List<SourceRepository> _repositories;
         private readonly NuGet.Common.ILogger _nugetLogger;
         private readonly CancellationToken _cancellationToken;
+        private static readonly TimeSpan PerSourceTimeout = TimeSpan.FromSeconds(30);
 
         public NuGetToolService(ILogger<NuGetToolService> logger, IOptions<ToolsConfiguration> configuration)
         {
@@ -78,14 +79,16 @@ namespace DotNetMetadataMcpServer.Services
                     {
                         try
                         {
-                            var searchResource = await item.Repo.GetResourceAsync<PackageSearchResource>();
+                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+                            cts.CancelAfter(PerSourceTimeout);
+                            var searchResource = await item.Repo.GetResourceAsync<PackageSearchResource>(cts.Token);
                             var results = await searchResource.SearchAsync(
                                 searchQuery,
                                 new SearchFilter(includePrerelease),
                                 skip: 0,
                                 take: 100,
                                 _nugetLogger,
-                                _cancellationToken);
+                                cts.Token);
                             return new { Results = results, Priority = item.Priority };
                         }
                         catch (Exception ex)
@@ -172,14 +175,16 @@ namespace DotNetMetadataMcpServer.Services
                     {
                         try
                         {
-                            var metadataResource = await item.Repo.GetResourceAsync<PackageMetadataResource>();
+                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+                            cts.CancelAfter(PerSourceTimeout);
+                            var metadataResource = await item.Repo.GetResourceAsync<PackageMetadataResource>(cts.Token);
                             var results = await metadataResource.GetMetadataAsync(
                                 packageId,
                                 includePrerelease,
                                 includeUnlisted: false,
                                 new SourceCacheContext(),
                                 _nugetLogger,
-                                _cancellationToken);
+                                cts.Token);
                             return new { Results = results, Priority = item.Priority };
                         }
                         catch (Exception ex)

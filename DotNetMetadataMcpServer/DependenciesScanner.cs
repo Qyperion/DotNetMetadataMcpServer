@@ -1,9 +1,9 @@
-using System.Reflection;
-using System.Runtime.Loader;
 using DependencyGraph.Core.Graph;
 using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.ProjectModel;
+using System.Reflection;
+using System.Runtime.Loader;
 
 namespace DotNetMetadataMcpServer;
 
@@ -28,7 +28,7 @@ public class DependenciesScanner : IDependenciesScanner
         _reflection = reflectionTypesCollector;
         _nuGetLogger = nuGetLogger ?? NullLogger<LockFileFormat>.Instance;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
-        
+
         AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
     }
 
@@ -48,7 +48,7 @@ public class DependenciesScanner : IDependenciesScanner
         }
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
-        
+
         _baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
@@ -75,21 +75,21 @@ public class DependenciesScanner : IDependenciesScanner
         // 3) Build DependencyGraph
         var lockFileFormat = new LockFileFormat();
         var lockFile = lockFileFormat.Read(assetsPath, new MicrosoftLoggerAdapter(_nuGetLogger));
-        
-        
+
+
         var theFirstTarget = lockFile.Targets.FirstOrDefault();
         if (theFirstTarget == null)
         {
             _logger.LogWarning("No targets found in lock file.");
             return pm;
         }
-        
+
         foreach (var lib in theFirstTarget.Libraries)
         {
             var d = BuildDependencyInfo(lib);
             depList.AddRange(d);
         }
-        
+
 
         /*var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
         {
@@ -117,7 +117,7 @@ public class DependenciesScanner : IDependenciesScanner
             var d = BuildDependencyInfo(child);
             if (d != null) depList.Add(d);
         }*/
-        
+
 
         return pm;
     }
@@ -127,7 +127,7 @@ public class DependenciesScanner : IDependenciesScanner
         var result = new List<DependencyInfo>();
         foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
         {
-            var rel = lockFileItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
+            var rel = lockFileItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
             var fileName = Path.GetFileName(rel);
             var full = Path.Combine(_baseDir, fileName);
             var types = _reflection.LoadAssemblyTypes(full);
@@ -143,8 +143,6 @@ public class DependenciesScanner : IDependenciesScanner
 
         return result;
     }
-    
-    
 
     private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
     {
@@ -155,93 +153,93 @@ public class DependenciesScanner : IDependenciesScanner
         switch (node)
         {
             case RootProjectDependencyGraphNode rootNode:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = rootNode.Name,
-                    NodeType = "root"
-                };
-                foreach (var child in rootNode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
-                }
-                return info;
-            }
-            case TargetFrameworkDependencyGraphNode tfmNode:
-            {
-                var info = new DependencyInfo
-                {
-                    Name = tfmNode.ProjectName,
-                    Version = tfmNode.TargetFrameworkIdentifier,
-                    NodeType = "target framework dependency"
-                };
-                foreach (var child in tfmNode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
-                }
-                return info;
-            }
-            case PackageDependencyGraphNode pkgNode:
-            {
-                var info = new DependencyInfo
-                {
-                    Name = pkgNode.Name,
-                    Version = pkgNode.Version.ToNormalizedString(),
-                    NodeType = "package"
-                };
-                // Load RuntimeAssemblies
-                if (pkgNode.TargetLibrary != null)
-                {
-                    foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
+                    var info = new DependencyInfo
                     {
-                        var rel = asmItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
-                        var fileName = Path.GetFileName(rel);
-                        var full = Path.Combine(_baseDir, fileName);
-                        var types = _reflection.LoadAssemblyTypes(full);
-                        info.Types.AddRange(types);
+                        Name = rootNode.Name,
+                        NodeType = "root"
+                    };
+                    foreach (var child in rootNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child);
+                        if (c != null) info.Children.Add(c);
                     }
+                    return info;
                 }
-                foreach (var child in pkgNode.Dependencies)
+            case TargetFrameworkDependencyGraphNode tfmNode:
                 {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    var info = new DependencyInfo
+                    {
+                        Name = tfmNode.ProjectName,
+                        Version = tfmNode.TargetFrameworkIdentifier,
+                        NodeType = "target framework dependency"
+                    };
+                    foreach (var child in tfmNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child);
+                        if (c != null) info.Children.Add(c);
+                    }
+                    return info;
                 }
-                return info;
-            }
+            case PackageDependencyGraphNode pkgNode:
+                {
+                    var info = new DependencyInfo
+                    {
+                        Name = pkgNode.Name,
+                        Version = pkgNode.Version.ToNormalizedString(),
+                        NodeType = "package"
+                    };
+                    // Load RuntimeAssemblies
+                    if (pkgNode.TargetLibrary != null)
+                    {
+                        foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
+                        {
+                            var rel = asmItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
+                            var fileName = Path.GetFileName(rel);
+                            var full = Path.Combine(_baseDir, fileName);
+                            var types = _reflection.LoadAssemblyTypes(full);
+                            info.Types.AddRange(types);
+                        }
+                    }
+                    foreach (var child in pkgNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child);
+                        if (c != null) info.Children.Add(c);
+                    }
+                    return info;
+                }
             case ProjectDependencyGraphNode pnode:
-            {
-                // Currently unable to load assemblies of other projects
-                var info = new DependencyInfo
                 {
-                    Name = pnode.Name,
-                    NodeType = "project"
-                };
-                foreach (var child in pnode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    // Currently unable to load assemblies of other projects
+                    var info = new DependencyInfo
+                    {
+                        Name = pnode.Name,
+                        NodeType = "project"
+                    };
+                    foreach (var child in pnode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child);
+                        if (c != null) info.Children.Add(c);
+                    }
+                    return info;
                 }
-                return info;
-            }
             default:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = node.ToString() ?? "Unknown",
-                    NodeType = "unknown"
-                };
-                foreach (var child in node.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    var info = new DependencyInfo
+                    {
+                        Name = node.ToString() ?? "Unknown",
+                        NodeType = "unknown"
+                    };
+                    foreach (var child in node.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child);
+                        if (c != null) info.Children.Add(c);
+                    }
+                    return info;
                 }
-                return info;
-            }
         }
     }
-    
+
     private Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
     {
         var assemblyName = new AssemblyName(args.Name);

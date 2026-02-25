@@ -1,5 +1,5 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies
@@ -16,7 +16,7 @@ FROM build AS publish
 RUN dotnet publish "DotNetMetadataMcpServer.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage - using SDK image to include MSBuild (required for Microsoft.Build.Locator)
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS base
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS base
 WORKDIR /app
 
 # Final stage

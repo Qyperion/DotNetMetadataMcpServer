@@ -18,6 +18,22 @@ namespace MetadataExplorerTest.Integration;
 [NonParallelizable] // MCP client with pipe streams does not support concurrent reads/writes
 public class EndToEndToolTests : McpServerIntegrationTestBase
 {
+    /// <summary>
+    /// Extracts text content from an AIFunction.InvokeAsync result.
+    /// In MCP SDK RC1, different tools may return TextContent or JsonElement.
+    /// </summary>
+    private static string ExtractText(object? result)
+    {
+        return result switch
+        {
+            TextContent tc => tc.Text ?? throw new InvalidOperationException("TextContent.Text is null"),
+            JsonElement je when je.ValueKind == JsonValueKind.String => je.GetString()!,
+            JsonElement je when je.TryGetProperty("content", out var content) =>
+                content[0].GetProperty("text").GetString()!,
+            JsonElement je => je.GetRawText(),
+            _ => throw new InvalidOperationException($"Unexpected result type: {result?.GetType()}")
+        };
+    }
     protected override void ConfigureServices(ServiceCollection services, IMcpServerBuilder mcpServerBuilder)
     {
         // Configure all MCP tools
@@ -89,10 +105,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         // Assert
         Assert.That(result, Is.Not.Null);
         
-        // The result is a JsonElement containing CallToolResult with content array
-        var jsonResult = (JsonElement)result;
-        var contentArray = jsonResult.GetProperty("content");
-        var textContent = contentArray[0].GetProperty("text").GetString();
+        var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         
         var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(textContent!);
@@ -125,10 +138,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         // Assert
         Assert.That(result, Is.Not.Null);
         
-        // The result is a JsonElement containing CallToolResult with content array
-        var jsonResult = (JsonElement)result;
-        var contentArray = jsonResult.GetProperty("content");
-        var textContent = contentArray[0].GetProperty("text").GetString();
+        var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         
         var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(textContent!);
@@ -189,10 +199,8 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         foreach (var result in results)
         {
             Assert.That(result, Is.Not.Null);
-            // Verify we can extract content from the result
-            var jsonResult = (JsonElement)result!;
-            var contentArray = jsonResult.GetProperty("content");
-            Assert.That(contentArray.GetArrayLength(), Is.GreaterThan(0));
+            var textContent = ExtractText(result);
+            Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         }
     }
 
@@ -216,21 +224,13 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         try
         {
             var result = await assemblyTool.InvokeAsync(arguments);
-            
-            // If we get a result, check if it has isError flag
-            var jsonResult = (JsonElement)(result ?? throw new InvalidOperationException("Result is null"));
-            if (jsonResult.TryGetProperty("isError", out var isErrorProp))
-            {
-                Assert.That(isErrorProp.GetBoolean(), Is.True, 
-                    "Expected isError to be true for invalid project path");
-            }
-            // If there's no isError property, the result should contain error information in content
-            else if (jsonResult.TryGetProperty("content", out var contentArray))
-            {
-                var textContent = contentArray[0].GetProperty("text").GetString();
-                Assert.That(textContent, Does.Contain("error").IgnoreCase.Or.Contains("exception").IgnoreCase,
-                    "Expected error message in content for invalid project path");
-            }
+
+            var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
+            Assert.That(text, Is.Not.Null.And.Not.Empty);
+
+            // Check if result contains error information
+            Assert.That(text, Does.Contain("error").IgnoreCase.Or.Contains("exception").IgnoreCase,
+                "Expected error message in content for invalid project path");
         }
         catch (Exception ex)
         {
@@ -268,11 +268,8 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         foreach (var result in results)
         {
             Assert.That(result, Is.Not.Null);
-            // Verify we can extract content from the result
-            var jsonResult = (JsonElement)result!;
-            var contentArray = jsonResult.GetProperty("content");
-            Assert.That(contentArray.GetArrayLength(), Is.GreaterThan(0));
+            var textContent = ExtractText(result);
+            Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         }
     }
 }
-
