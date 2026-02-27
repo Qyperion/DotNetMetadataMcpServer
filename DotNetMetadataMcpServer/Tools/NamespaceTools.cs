@@ -10,6 +10,8 @@ namespace DotNetMetadataMcpServer.Tools;
 [McpServerToolType]
 public sealed class NamespaceTools
 {
+    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+
     [McpServerTool(Name = "NamespacesExplorer")]
     [Description("Retrieves namespaces from specified assemblies supporting filters and pagination (doesn't extract data from referenced projects. Notice that the project must be built before scanning.")]
     public static string GetNamespaces(
@@ -40,8 +42,8 @@ public sealed class NamespaceTools
             
             logger.LogDebug("Namespaces retrieved successfully: {@NamespacesScanResult}", result);
             
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
+            var json = toolsConfiguration.Value.IndentResponse
+                ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
             
             return json;

@@ -10,6 +10,8 @@ namespace DotNetMetadataMcpServer.Tools;
 [McpServerToolType]
 public sealed class TypeTools
 {
+    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+
     [McpServerTool(Name = "NamespaceTypes")]
     [Description("Retrieves types from specified namespaces supporting filters and pagination.")]
     public static string GetTypes(
@@ -40,8 +42,8 @@ public sealed class TypeTools
             
             logger.LogDebug("Types retrieved successfully: {@TypesScanResult}", result);
             
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
+            var json = toolsConfiguration.Value.IndentResponse
+                ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
             
             return json;

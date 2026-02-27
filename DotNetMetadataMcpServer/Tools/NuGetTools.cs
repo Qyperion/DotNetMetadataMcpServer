@@ -10,6 +10,8 @@ namespace DotNetMetadataMcpServer.Tools;
 [McpServerToolType]
 public sealed class NuGetTools
 {
+    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+
     [McpServerTool(Name = "NuGetPackageSearch")]
     [Description("Searches for NuGet packages on nuget.org with support for filtering and pagination.")]
     public static async Task<string> SearchPackages(
@@ -39,8 +41,8 @@ public sealed class NuGetTools
             
             logger.LogDebug("NuGet packages search completed successfully: {@SearchResult}", result);
             
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
+            var json = toolsConfiguration.Value.IndentResponse
+                ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
             
             return json;
@@ -81,8 +83,8 @@ public sealed class NuGetTools
             
             logger.LogDebug("NuGet package versions retrieved successfully: {@VersionsResult}", result);
             
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
+            var json = toolsConfiguration.Value.IndentResponse
+                ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
             
             return json;
