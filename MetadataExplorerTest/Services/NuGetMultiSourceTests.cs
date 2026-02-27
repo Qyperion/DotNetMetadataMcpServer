@@ -2,7 +2,6 @@ using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NUnit.Framework;
 
 namespace MetadataExplorerTest.Services;
 
@@ -30,7 +29,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -65,7 +64,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -100,7 +99,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -127,7 +126,7 @@ public class NuGetMultiSourceTests
         {
             NuGetSources = new List<NuGetSourceConfiguration>()
         };
-        
+
         var options = Options.Create(configuration);
 
         // Act & Assert - Constructor should add default nuget.org, so no exception
@@ -150,7 +149,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
 
         // Act & Assert - Should add default nuget.org when all are disabled
@@ -173,7 +172,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -188,7 +187,7 @@ public class NuGetMultiSourceTests
         // Assert - Check that there are no duplicate package IDs
         var packageIds = result.Packages.Select(p => p.Id).ToList();
         var uniqueIds = packageIds.Distinct().ToList();
-        
+
         Assert.That(packageIds.Count, Is.EqualTo(uniqueIds.Count),
             "Expected no duplicate package IDs in results");
     }
@@ -215,7 +214,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -249,7 +248,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -271,10 +270,10 @@ public class NuGetMultiSourceTests
         // Assert - Results should be deterministic
         Assert.That(result1, Is.Not.Null);
         Assert.That(result1.Packages, Is.Not.Empty);
-        
+
         var package1 = result1.Packages.FirstOrDefault(p => p.Id == "Newtonsoft.Json");
         var package2 = result2.Packages.FirstOrDefault(p => p.Id == "Newtonsoft.Json");
-        
+
         Assert.That(package1, Is.Not.Null, "Expected to find Newtonsoft.Json in first call");
         Assert.That(package2, Is.Not.Null, "Expected to find Newtonsoft.Json in second call");
         Assert.That(package2.Description, Is.EqualTo(package1.Description),
@@ -307,7 +306,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -322,7 +321,7 @@ public class NuGetMultiSourceTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Packages, Is.Not.Empty);
-        
+
         // Run the same query again to verify determinism
         var result2 = await service.SearchPackagesAsync(
             searchQuery: "System.Runtime",
@@ -334,15 +333,15 @@ public class NuGetMultiSourceTests
         // Results should be identical (same order, same metadata)
         Assert.That(result2.Packages.Count, Is.EqualTo(result.Packages.Count),
             "Results should have same count across calls");
-            
+
         for (int i = 0; i < result.Packages.Count; i++)
         {
             var pkg1 = result.Packages[i];
             var pkg2 = result2.Packages[i];
-            
-            Assert.That(pkg2.Id, Is.EqualTo(pkg1.Id), 
+
+            Assert.That(pkg2.Id, Is.EqualTo(pkg1.Id),
                 $"Package at index {i} should have same ID");
-            Assert.That(pkg2.Version, Is.EqualTo(pkg1.Version), 
+            Assert.That(pkg2.Version, Is.EqualTo(pkg1.Version),
                 $"Package {pkg1.Id} should have same version");
         }
     }
@@ -371,7 +370,7 @@ public class NuGetMultiSourceTests
                 }
             }
         };
-        
+
         var options = Options.Create(configuration);
         var service = new NuGetToolService(NullLogger<NuGetToolService>.Instance, options);
 
@@ -387,7 +386,7 @@ public class NuGetMultiSourceTests
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Packages, Is.Not.Empty,
             "Expected to find System.Runtime packages from configured sources");
-        
+
         // Verify deduplication is working (no duplicate package IDs)
         var packageIds = result.Packages.Select(p => p.Id).ToList();
         var uniqueIds = packageIds.Distinct().ToList();

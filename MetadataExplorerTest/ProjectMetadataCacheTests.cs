@@ -1,5 +1,4 @@
 using DotNetMetadataMcpServer;
-using Moq;
 
 namespace MetadataExplorerTest;
 

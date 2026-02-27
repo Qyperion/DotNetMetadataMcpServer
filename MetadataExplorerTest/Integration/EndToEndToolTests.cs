@@ -48,7 +48,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Tools:DefaultPageSize"] = "20",
-                ["Tools:IntendResponse"] = "true" // Use indented JSON for easier debugging
+                ["Tools:IndentResponse"] = "true" // Use indented JSON for easier debugging
             })
             .Build();
 
@@ -62,6 +62,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
         services.AddScoped<NuGetToolService>();
+        services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
 
     [Test]
