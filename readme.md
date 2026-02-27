@@ -54,7 +54,7 @@ The server supports querying multiple NuGet package sources simultaneously. Conf
 {
   "Tools": {
     "DefaultPageSize": 20,
-    "IntendResponse": false,
+    "IndentResponse": false,
     "NuGetSources": [
       {
         "Name": "nuget.org",

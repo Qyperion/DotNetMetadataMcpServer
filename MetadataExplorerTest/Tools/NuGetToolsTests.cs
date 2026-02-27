@@ -23,7 +23,7 @@ public class NuGetToolsTests
         _toolsConfiguration = Options.Create(new ToolsConfiguration
         {
             DefaultPageSize = 20,
-            IntendResponse = false
+            IndentResponse = false
         });
         _nuGetToolService = new NuGetToolService(NullLogger<NuGetToolService>.Instance, _toolsConfiguration);
         _logger = NullLogger<NuGetTools>.Instance;
@@ -146,7 +146,7 @@ public class NuGetToolsTests
         var indentedConfig = Options.Create(new ToolsConfiguration
         {
             DefaultPageSize = 20,
-            IntendResponse = true
+            IndentResponse = true
         });
 
         // Act
@@ -209,7 +209,7 @@ public class NuGetToolsTests
         var smallPageConfig = Options.Create(new ToolsConfiguration
         {
             DefaultPageSize = 5,
-            IntendResponse = false
+            IndentResponse = false
         });
 
         // Act - Get first page
