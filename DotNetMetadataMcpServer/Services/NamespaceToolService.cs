@@ -21,7 +21,7 @@ namespace DotNetMetadataMcpServer.Services
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
 
             var allowedAssemblyNamesWithoutExtension = allowedAssemblyNames
-                .Select(Path.GetFileNameWithoutExtension)
+                .Select(NormalizeAssemblyName)
                 .Where(s => s != null)
                 .Select(s => s!.ToLowerInvariant())
                 .ToHashSet();
@@ -40,7 +40,7 @@ namespace DotNetMetadataMcpServer.Services
                 // Include namespaces from dependencies whose Name is in allowedAssemblyNames.
                 foreach (var dep in metadata.Dependencies)
                 {
-                    var depNameWithoutExtension = Path.GetFileNameWithoutExtension(dep.Name);
+                    var depNameWithoutExtension = NormalizeAssemblyName(dep.Name);
                     if (allowedAssemblyNamesWithoutExtension.Contains(depNameWithoutExtension.ToLowerInvariant()))
                     {
                         allowedNamespaces.AddRange(ExtractNamespaces(dep.Types));
@@ -82,6 +82,21 @@ namespace DotNetMetadataMcpServer.Services
             return types
                 .Where(t => !string.IsNullOrWhiteSpace(t.FullName) && t.FullName.Contains('.'))
                 .Select(t => t.FullName.Substring(0, t.FullName.LastIndexOf('.')));
+        }
+
+        /// <summary>
+        /// Strips only .dll/.exe extensions from assembly names.
+        /// Unlike Path.GetFileNameWithoutExtension, this preserves dotted names
+        /// like "Newtonsoft.Json" or "McpTestProject.Core".
+        /// </summary>
+        private static string NormalizeAssemblyName(string name)
+        {
+            if (name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return name[..^4];
+            }
+            return name;
         }
     }
 }
