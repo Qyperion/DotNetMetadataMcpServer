@@ -18,7 +18,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -40,7 +40,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Set version
         id: set-version
@@ -74,7 +74,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -87,7 +87,7 @@ jobs:
         run: |
           $VERSION = "${{ needs.build.outputs.version }}"
           $ZIP_NAME = "DotNetMetadataMcpServer-windows-x64-v$VERSION.zip"
-          Compress-Archive -Path DotNetMetadataMcpServer/bin/Release/net9.0/win-x64/publish/* -DestinationPath $ZIP_NAME
+          Compress-Archive -Path DotNetMetadataMcpServer/bin/Release/net10.0/win-x64/publish/* -DestinationPath $ZIP_NAME
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -105,7 +105,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -118,7 +118,7 @@ jobs:
         run: |
           VERSION="${{ needs.build.outputs.version }}"
           ZIP_NAME="DotNetMetadataMcpServer-linux-x64-v$VERSION.zip"
-          cd DotNetMetadataMcpServer/bin/Release/net9.0/linux-x64/publish/
+          cd DotNetMetadataMcpServer/bin/Release/net10.0/linux-x64/publish/
           chmod +x DotNetMetadataMcpServer
           zip -r ../../../../../../$ZIP_NAME *
 
@@ -141,7 +141,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -154,7 +154,7 @@ jobs:
         run: |
           VERSION="${{ needs.build.outputs.version }}"
           ZIP_NAME="DotNetMetadataMcpServer-${{ matrix.architecture }}-v$VERSION.zip"
-          cd DotNetMetadataMcpServer/bin/Release/net9.0/${{ matrix.architecture }}/publish/
+          cd DotNetMetadataMcpServer/bin/Release/net10.0/${{ matrix.architecture }}/publish/
           zip -r ../../../../../../$ZIP_NAME *
 
       - name: Upload artifact
