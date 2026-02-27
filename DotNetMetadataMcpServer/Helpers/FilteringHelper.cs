@@ -12,6 +12,7 @@ public static class FilteringHelper
     public static Predicate<string> PrepareFilteringPredicate(string filter)
     {
         var pattern = PrepareFilteringPattern(filter);
-        return new Predicate<string>(input => Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase));
+        var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        return new Predicate<string>(input => regex.IsMatch(input));
     }
 }
