@@ -66,6 +66,7 @@ public class Program
             .WithTools<AssemblyTools>()
             .WithTools<NamespaceTools>()
             .WithTools<TypeTools>()
+            .WithTools<TypeSearchTools>()
             .WithTools<NuGetTools>();
             
             // Register configuration
@@ -80,6 +81,7 @@ public class Program
             builder.Services.AddScoped<AssemblyToolService>();
             builder.Services.AddScoped<NamespaceToolService>();
             builder.Services.AddScoped<TypeToolService>();
+            builder.Services.AddScoped<TypeSearchToolService>();
             builder.Services.AddScoped<NuGetToolService>();
             
             var host = builder.Build();

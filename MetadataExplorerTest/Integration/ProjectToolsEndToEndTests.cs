@@ -47,7 +47,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         mcpServerBuilder
             .WithTools<AssemblyTools>()
             .WithTools<NamespaceTools>()
-            .WithTools<TypeTools>();
+            .WithTools<TypeTools>()
+            .WithTools<TypeSearchTools>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -65,6 +66,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         services.AddScoped<AssemblyToolService>();
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
+        services.AddScoped<TypeSearchToolService>();
         services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
 
@@ -679,6 +681,27 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.CurrentPage, Is.EqualTo(1));
         Assert.That(response.AvailablePages, Contains.Item(1));
+    }
+
+    [Test]
+    public async Task TypeSearch_Should_Find_ProjectType_ByName()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "TypeSearch");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["projectFileAbsolutePath"] = TestProjectPath,
+            ["searchQuery"] = "ProductService",
+            ["pageNumber"] = 1
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<TypeSearchToolResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.TypeMatches, Is.Not.Empty);
+        Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("ProductService", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 
     #endregion

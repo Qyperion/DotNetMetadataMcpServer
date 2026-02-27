@@ -172,4 +172,21 @@ namespace DotNetMetadataMcpServer.Models
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool IsStatic { get; init; }
     }
+
+    public class TypeSearchToolResponse : PagedResponse
+    {
+        public IEnumerable<TypeSearchMatch> TypeMatches { get; set; } = [];
+    }
+
+    public class TypeSearchMatch
+    {
+        [Required]
+        public required string FullName { get; init; }
+
+        [Required]
+        public required string AssemblyName { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Documentation { get; init; }
+    }
 }
