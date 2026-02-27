@@ -13,14 +13,12 @@ namespace DotNetMetadataMcpServer.Services
         private readonly ILogger<NuGetToolService> _logger;
         private readonly List<SourceRepository> _repositories;
         private readonly NuGet.Common.ILogger _nugetLogger;
-        private readonly CancellationToken _cancellationToken;
         private static readonly TimeSpan PerSourceTimeout = TimeSpan.FromSeconds(30);
 
         public NuGetToolService(ILogger<NuGetToolService> logger, IOptions<ToolsConfiguration> configuration)
         {
             _logger = logger;
             _nugetLogger = NullLogger.Instance;
-            _cancellationToken = CancellationToken.None;
             
             // Initialize repositories from configuration
             // Priority is determined by order in configuration (first = highest priority)
@@ -66,7 +64,8 @@ namespace DotNetMetadataMcpServer.Services
             List<string> filters, 
             bool includePrerelease, 
             int pageNumber, 
-            int pageSize)
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Searching NuGet packages with query: {Query}, includePrerelease: {IncludePrerelease} across {SourceCount} sources", 
                 searchQuery, includePrerelease, _repositories.Count);
@@ -79,7 +78,7 @@ namespace DotNetMetadataMcpServer.Services
                     {
                         try
                         {
-                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             cts.CancelAfter(PerSourceTimeout);
                             var searchResource = await item.Repo.GetResourceAsync<PackageSearchResource>(cts.Token);
                             var results = await searchResource.SearchAsync(
@@ -162,7 +161,8 @@ namespace DotNetMetadataMcpServer.Services
             List<string> filters, 
             bool includePrerelease, 
             int pageNumber, 
-            int pageSize)
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Getting versions for NuGet package: {PackageId}, includePrerelease: {IncludePrerelease} across {SourceCount} sources", 
                 packageId, includePrerelease, _repositories.Count);
@@ -175,7 +175,7 @@ namespace DotNetMetadataMcpServer.Services
                     {
                         try
                         {
-                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             cts.CancelAfter(PerSourceTimeout);
                             var metadataResource = await item.Repo.GetResourceAsync<PackageMetadataResource>(cts.Token);
                             var results = await metadataResource.GetMetadataAsync(
