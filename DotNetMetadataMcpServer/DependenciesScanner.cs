@@ -16,7 +16,6 @@ public class DependenciesScanner : IDependenciesScanner
 
     private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
 
-    private string _baseDir = "";
 
     public DependenciesScanner(
         MsBuildHelper msBuildHelper,
@@ -49,7 +48,7 @@ public class DependenciesScanner : IDependenciesScanner
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
 
-        _baseDir = Path.GetDirectoryName(asmPath) ?? "";
+        var baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
         var pm = new ProjectMetadata
@@ -86,7 +85,7 @@ public class DependenciesScanner : IDependenciesScanner
 
         foreach (var lib in theFirstTarget.Libraries)
         {
-            var d = BuildDependencyInfo(lib);
+            var d = BuildDependencyInfo(lib, baseDir);
             depList.AddRange(d);
         }
 
@@ -114,7 +113,7 @@ public class DependenciesScanner : IDependenciesScanner
         
         foreach (var child in tfmNode.Dependencies)
         {
-            var d = BuildDependencyInfo(child);
+            var d = BuildDependencyInfo(child, baseDir);
             if (d != null) depList.Add(d);
         }*/
 
@@ -122,14 +121,14 @@ public class DependenciesScanner : IDependenciesScanner
         return pm;
     }
 
-    private List<DependencyInfo> BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary)
+    private List<DependencyInfo> BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary, string baseDir)
     {
         var result = new List<DependencyInfo>();
         foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
         {
             var rel = lockFileItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
             var fileName = Path.GetFileName(rel);
-            var full = Path.Combine(_baseDir, fileName);
+            var full = Path.Combine(baseDir, fileName);
             var types = _reflection.LoadAssemblyTypes(full);
             var info = new DependencyInfo
             {
@@ -144,7 +143,7 @@ public class DependenciesScanner : IDependenciesScanner
         return result;
     }
 
-    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
+    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir)
     {
         // Check if already visited
         if (!_visitedNodes.Add(node))
@@ -161,7 +160,7 @@ public class DependenciesScanner : IDependenciesScanner
                     };
                     foreach (var child in rootNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child);
+                        var c = BuildDependencyInfo(child, baseDir);
                         if (c != null) info.Children.Add(c);
                     }
                     return info;
@@ -176,7 +175,7 @@ public class DependenciesScanner : IDependenciesScanner
                     };
                     foreach (var child in tfmNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child);
+                        var c = BuildDependencyInfo(child, baseDir);
                         if (c != null) info.Children.Add(c);
                     }
                     return info;
@@ -196,14 +195,14 @@ public class DependenciesScanner : IDependenciesScanner
                         {
                             var rel = asmItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
                             var fileName = Path.GetFileName(rel);
-                            var full = Path.Combine(_baseDir, fileName);
+                            var full = Path.Combine(baseDir, fileName);
                             var types = _reflection.LoadAssemblyTypes(full);
                             info.Types.AddRange(types);
                         }
                     }
                     foreach (var child in pkgNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child);
+                        var c = BuildDependencyInfo(child, baseDir);
                         if (c != null) info.Children.Add(c);
                     }
                     return info;
@@ -218,7 +217,7 @@ public class DependenciesScanner : IDependenciesScanner
                     };
                     foreach (var child in pnode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child);
+                        var c = BuildDependencyInfo(child, baseDir);
                         if (c != null) info.Children.Add(c);
                     }
                     return info;
@@ -232,7 +231,7 @@ public class DependenciesScanner : IDependenciesScanner
                     };
                     foreach (var child in node.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child);
+                        var c = BuildDependencyInfo(child, baseDir);
                         if (c != null) info.Children.Add(c);
                     }
                     return info;
