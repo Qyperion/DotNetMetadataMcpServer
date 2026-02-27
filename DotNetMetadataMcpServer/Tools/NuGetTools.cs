@@ -1,9 +1,9 @@
-using System.ComponentModel;
-using System.Text.Json;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
+using System.Text.Json;
 
 namespace DotNetMetadataMcpServer.Tools;
 
@@ -24,27 +24,27 @@ public sealed class NuGetTools
         [Description("Page number (1-based)")] int pageNumber = 1)
     {
         using var _ = logger.BeginScope("{NuGetSearchToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to search NuGet packages: {Query}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to search NuGet packages: {Query}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}",
             searchQuery, includePrerelease, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
-            
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
+
             var result = await nuGetToolService.SearchPackagesAsync(
                 searchQuery: searchQuery,
                 filters: filters,
                 includePrerelease: includePrerelease,
                 pageNumber: pageNumber,
                 pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+
             logger.LogDebug("NuGet packages search completed successfully: {@SearchResult}", result);
-            
+
             var json = toolsConfiguration.Value.IndentResponse
                 ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
-            
+
             return json;
         }
         catch (Exception ex)
@@ -66,27 +66,27 @@ public sealed class NuGetTools
         [Description("Page number (1-based)")] int pageNumber = 1)
     {
         using var _ = logger.BeginScope("{NuGetVersionsToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to get versions for NuGet package: {PackageId}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to get versions for NuGet package: {PackageId}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}",
             packageId, includePrerelease, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
-            
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
+
             var result = await nuGetToolService.GetPackageVersionsAsync(
                 packageId: packageId,
                 filters: filters,
                 includePrerelease: includePrerelease,
                 pageNumber: pageNumber,
                 pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+
             logger.LogDebug("NuGet package versions retrieved successfully: {@VersionsResult}", result);
-            
+
             var json = toolsConfiguration.Value.IndentResponse
                 ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
-            
+
             return json;
         }
         catch (Exception ex)

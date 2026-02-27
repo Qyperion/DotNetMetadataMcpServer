@@ -32,12 +32,12 @@ public class TypeToolServiceTests
     public void GetTypes_WithAllowedNamespaces_ReturnsFilteredResults()
     {
         const string allowedNamespace = "DotNetMetadataMcpServer.Models";
-        
+
         var allowedNamespaces = new List<string> { allowedNamespace };
-        var response = _service.GetTypes(_testProjectPath, allowedNamespaces, new List<string>(), 1, 20);
-        
+        var response = _service.GetTypes(_testProjectPath, allowedNamespaces, [], 1, 20);
+
         Assert.That(response.TypeData, Is.Not.Empty);
-        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t => 
+        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t =>
             t.FullName.StartsWith(allowedNamespace)));
     }
 
@@ -45,12 +45,12 @@ public class TypeToolServiceTests
     public void GetTypes_WithFilters_ReturnsFilteredResults()
     {
         const string filter = "*Configuration";
-        
+
         var filters = new List<string> { filter };
-        var response = _service.GetTypes(_testProjectPath, new List<string>(), filters, 1, 20);
-        
+        var response = _service.GetTypes(_testProjectPath, [], filters, 1, 20);
+
         Assert.That(response.TypeData, Is.Not.Empty);
-        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t => 
+        Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t =>
             t.FullName.EndsWith("Configuration")));
     }
 
@@ -58,29 +58,29 @@ public class TypeToolServiceTests
     public void GetTypes_Pagination_ReturnsCorrectPage()
     {
         const int pageSize = 5;
-        
-        var response1 = _service.GetTypes(_testProjectPath, new List<string>(), new List<string>(), 1, pageSize);
-        var response2 = _service.GetTypes(_testProjectPath, new List<string>(), new List<string>(), 2, pageSize);
-        
+
+        var response1 = _service.GetTypes(_testProjectPath, [], [], 1, pageSize);
+        var response2 = _service.GetTypes(_testProjectPath, [], [], 2, pageSize);
+
         Assert.That(response1.TypeData, Is.Not.Empty);
         Assert.That(response2.TypeData, Is.Not.Empty);
-        
+
         Assert.That(response1.TypeData, Is.Not.EqualTo(response2.TypeData));
         Assert.That(response1.TypeData, Is.Not.EquivalentTo(response2.TypeData));
-        
+
         Assert.That(response1.CurrentPage, Is.EqualTo(1));
         Assert.That(response2.CurrentPage, Is.EqualTo(2));
-        
+
         Assert.That(response1.AvailablePages, Is.EquivalentTo(response2.AvailablePages));
     }
-    
+
     [Test]
     public void GetTypes_WithInvalidPageNumber_ReturnsEmptyResults()
     {
         const int invalidPageNumber = 10000;
-        
-        var response = _service.GetTypes(_testProjectPath, new List<string>(), new List<string>(), invalidPageNumber, 20);
-        
+
+        var response = _service.GetTypes(_testProjectPath, [], [], invalidPageNumber, 20);
+
         Assert.That(response.TypeData, Is.Empty);
         Assert.That(response.CurrentPage, Is.EqualTo(invalidPageNumber));
         Assert.That(response.AvailablePages, Is.Not.Empty);

@@ -23,32 +23,23 @@ public class MsBuildHelper
             throw new FileNotFoundException("CSProj not found", csprojPath);
 
         _logger.LogInformation("Loading project: {Proj}", csprojPath);
-        
+
         using var projectCollection = new ProjectCollection();
 
         // Unload any existing projects with the same path
         var existingProject = projectCollection.LoadedProjects
             .FirstOrDefault(p => string.Equals(p.FullPath, csprojPath, StringComparison.OrdinalIgnoreCase));
         if (existingProject != null)
-        {
             projectCollection.UnloadProject(existingProject);
-        }
 
         var project = new Project(csprojPath, null, null, projectCollection);
 
         // Try the requested configuration first, then fall back to the most common alternatives.
         var configurationsToTry = new List<string>();
-        void addIfMissing(string cfg)
-        {
-            if (!configurationsToTry.Contains(cfg, StringComparer.OrdinalIgnoreCase))
-            {
-                configurationsToTry.Add(cfg);
-            }
-        }
 
-        addIfMissing(configuration);
-        addIfMissing("Release");
-        addIfMissing("Debug");
+        AddIfMissing(configuration);
+        AddIfMissing("Release");
+        AddIfMissing("Debug");
 
         string? finalAsmPath = null;
         string? chosenConfiguration = null;
@@ -99,9 +90,8 @@ public class MsBuildHelper
         // If not found, fall back to a reasonable default path for the originally requested configuration
         assemblyName = project.GetPropertyValue("AssemblyName");
         if (string.IsNullOrWhiteSpace(assemblyName))
-        {
             assemblyName = Path.GetFileNameWithoutExtension(csprojPath);
-        }
+
         targetFramework = project.GetPropertyValue("TargetFramework");
         if (finalAsmPath == null)
         {
@@ -125,12 +115,16 @@ public class MsBuildHelper
                          : "";
 
         if (string.IsNullOrEmpty(assetsFile))
-        {
             _logger.LogWarning("project.assets.json not found in {0}", projDir);
-        }
-        
+
         projectCollection.UnloadAllProjects();
 
         return (finalAsmPath, assetsFile, targetFramework ?? "netX");
+
+        void AddIfMissing(string cfg)
+        {
+            if (!configurationsToTry.Contains(cfg, StringComparer.OrdinalIgnoreCase))
+                configurationsToTry.Add(cfg);
+        }
     }
 }

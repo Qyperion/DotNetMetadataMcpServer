@@ -14,7 +14,7 @@ public class DependenciesScanner : IDependenciesScanner
     private readonly ILogger _nuGetLogger;
     private readonly ILogger<DependenciesScanner> _logger;
 
-    private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
+    private readonly HashSet<IDependencyGraphNode> _visitedNodes = [];
 
 
     public DependenciesScanner(
@@ -158,11 +158,14 @@ public class DependenciesScanner : IDependenciesScanner
                         Name = rootNode.Name,
                         NodeType = "root"
                     };
+
                     foreach (var child in rootNode.Dependencies)
                     {
                         var c = BuildDependencyInfo(child, baseDir);
-                        if (c != null) info.Children.Add(c);
+                        if (c != null)
+                            info.Children.Add(c);
                     }
+
                     return info;
                 }
             case TargetFrameworkDependencyGraphNode tfmNode:
@@ -173,11 +176,14 @@ public class DependenciesScanner : IDependenciesScanner
                         Version = tfmNode.TargetFrameworkIdentifier,
                         NodeType = "target framework dependency"
                     };
+
                     foreach (var child in tfmNode.Dependencies)
                     {
                         var c = BuildDependencyInfo(child, baseDir);
-                        if (c != null) info.Children.Add(c);
+                        if (c != null)
+                            info.Children.Add(c);
                     }
+
                     return info;
                 }
             case PackageDependencyGraphNode pkgNode:
@@ -188,23 +194,24 @@ public class DependenciesScanner : IDependenciesScanner
                         Version = pkgNode.Version.ToNormalizedString(),
                         NodeType = "package"
                     };
+
                     // Load RuntimeAssemblies
-                    if (pkgNode.TargetLibrary != null)
+                    foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
                     {
-                        foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
-                        {
-                            var rel = asmItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
-                            var fileName = Path.GetFileName(rel);
-                            var full = Path.Combine(baseDir, fileName);
-                            var types = _reflection.LoadAssemblyTypes(full);
-                            info.Types.AddRange(types);
-                        }
+                        var rel = asmItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
+                        var fileName = Path.GetFileName(rel);
+                        var full = Path.Combine(baseDir, fileName);
+                        var types = _reflection.LoadAssemblyTypes(full);
+                        info.Types.AddRange(types);
                     }
+
                     foreach (var child in pkgNode.Dependencies)
                     {
                         var c = BuildDependencyInfo(child, baseDir);
-                        if (c != null) info.Children.Add(c);
+                        if (c != null)
+                            info.Children.Add(c);
                     }
+
                     return info;
                 }
             case ProjectDependencyGraphNode pnode:
@@ -215,11 +222,14 @@ public class DependenciesScanner : IDependenciesScanner
                         Name = pnode.Name,
                         NodeType = "project"
                     };
+
                     foreach (var child in pnode.Dependencies)
                     {
                         var c = BuildDependencyInfo(child, baseDir);
-                        if (c != null) info.Children.Add(c);
+                        if (c != null)
+                            info.Children.Add(c);
                     }
+
                     return info;
                 }
             default:
@@ -229,17 +239,20 @@ public class DependenciesScanner : IDependenciesScanner
                         Name = node.ToString() ?? "Unknown",
                         NodeType = "unknown"
                     };
+
                     foreach (var child in node.Dependencies)
                     {
                         var c = BuildDependencyInfo(child, baseDir);
-                        if (c != null) info.Children.Add(c);
+                        if (c != null)
+                            info.Children.Add(c);
                     }
+
                     return info;
                 }
         }
     }
 
-    private Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
+    private static Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
     {
         var assemblyName = new AssemblyName(args.Name);
         var requestingAssemblyLocation = args.RequestingAssembly?.Location;
@@ -256,14 +269,11 @@ public class DependenciesScanner : IDependenciesScanner
             baseDirectory = AppContext.BaseDirectory;
         }
 
-        var assemblyPath = Path.Combine(baseDirectory!, $"{assemblyName.Name}.dll");
+        var assemblyPath = Path.Combine(baseDirectory, $"{assemblyName.Name}.dll");
 
-        if (File.Exists(assemblyPath))
-        {
-            return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
-        }
-
-        return null;
+        return File.Exists(assemblyPath)
+            ? AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath)
+            : null;
     }
 
     public void Dispose()

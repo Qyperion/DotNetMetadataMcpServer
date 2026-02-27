@@ -1,5 +1,6 @@
-using System.Reflection;
+using DotNetMetadataMcpServer.AssemblyLoading;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Reflection;
 
 namespace DotNetMetadataMcpServer;
 
@@ -15,7 +16,7 @@ public class ReflectionTypesCollector
     public List<TypeInfoModel> LoadAssemblyTypes(string asmPath)
     {
         HashSet<string> loadedAssemblyPaths = new(StringComparer.OrdinalIgnoreCase);
-        
+
         var result = new List<TypeInfoModel>();
         if (string.IsNullOrEmpty(asmPath) || !File.Exists(asmPath))
         {
@@ -93,12 +94,14 @@ public class ReflectionTypesCollector
 
     private TypeInfoModel CollectTypeInfo(Type type)
     {
-        var model = new TypeInfoModel { FullName = type.FullName ?? type.Name };
-
-        // Collect interfaces
-        model.Implements = type.GetInterfaces()
-            .Select(i => i.Name)
-            .ToList();
+        var model = new TypeInfoModel
+        {
+            FullName = type.FullName ?? type.Name,
+            // Collect interfaces
+            Implements = type.GetInterfaces()
+                .Select(i => i.Name)
+                .ToList()
+        };
 
         // Collect constructors with parameters (skip broken ones)
         var constructors = new List<ConstructorInfoModel>();
@@ -193,7 +196,7 @@ public class ReflectionTypesCollector
             {
                 if (e.EventHandlerType == null)
                     continue; // should not happen
-                
+
                 // If public add/remove methods
                 var addM = e.GetAddMethod(false);
                 var removeM = e.GetRemoveMethod(false);
@@ -217,7 +220,7 @@ public class ReflectionTypesCollector
         return model;
     }
 
-    private MethodInfoModel CollectMethodInfo(MethodInfo m)
+    private static MethodInfoModel CollectMethodInfo(MethodInfo m)
     {
         return new MethodInfoModel
         {
@@ -225,7 +228,7 @@ public class ReflectionTypesCollector
             ReturnType = GetFriendlyName(m.ReturnType),
             IsStatic = m.IsStatic,
             IsAbstract = m.IsAbstract,
-            IsVirtual = m.IsVirtual && !m.IsAbstract,
+            IsVirtual = m is { IsVirtual: true, IsAbstract: false },
             IsOverride = m.GetBaseDefinition().DeclaringType != m.DeclaringType,
             IsSealed = m.IsFinal,
             Parameters = m.GetParameters()
@@ -241,7 +244,7 @@ public class ReflectionTypesCollector
         };
     }
 
-    private string GetParameterModifier(ParameterInfo p)
+    private static string GetParameterModifier(ParameterInfo p)
     {
         if (p.IsOut) return "out";
         if (p.ParameterType.IsByRef) return "ref";
@@ -249,24 +252,24 @@ public class ReflectionTypesCollector
         return "";
     }
 
-    private PropertyInfoModel CollectPropertyInfo(PropertyInfo p)
+    private static PropertyInfoModel CollectPropertyInfo(PropertyInfo p)
     {
         var getMethod = p.GetGetMethod(false);
         var setMethod = p.GetSetMethod(false);
-        
+
         // Check for required attribute on property and backing field
         var isRequired = p.GetCustomAttributes(true)
             .Any(attr => attr.GetType().Name is "RequiredAttribute" or "RequiredMemberAttribute");
-            
+
         if (!isRequired)
         {
-            var backingField = p.DeclaringType?.GetField($"<{p.Name}>k__BackingField", 
+            var backingField = p.DeclaringType?.GetField($"<{p.Name}>k__BackingField",
                 BindingFlags.NonPublic | BindingFlags.Instance);
-                
+
             isRequired = backingField?.CustomAttributes
                 .Any(a => a.AttributeType.Name is "RequiredAttribute" or "RequiredMemberAttribute") ?? false;
         }
-        
+
         return new PropertyInfoModel
         {
             Name = p.Name,
@@ -275,7 +278,7 @@ public class ReflectionTypesCollector
             HasPublicSetter = setMethod != null,
             IsStatic = (getMethod?.IsStatic ?? false) || (setMethod?.IsStatic ?? false),
             IsAbstract = (getMethod?.IsAbstract ?? false) || (setMethod?.IsAbstract ?? false),
-            IsVirtual = ((getMethod?.IsVirtual ?? false) || (setMethod?.IsVirtual ?? false)) && 
+            IsVirtual = ((getMethod?.IsVirtual ?? false) || (setMethod?.IsVirtual ?? false)) &&
                        !((getMethod?.IsAbstract ?? false) || (setMethod?.IsAbstract ?? false)),
             IsOverride = (getMethod?.GetBaseDefinition().DeclaringType != getMethod?.DeclaringType) ||
                         (setMethod?.GetBaseDefinition().DeclaringType != setMethod?.DeclaringType),
@@ -300,7 +303,7 @@ public class ReflectionTypesCollector
     }
 
     /// <summary>Check if the class/struct/interface is fully public (considering IsNestedPublic).</summary>
-    private bool IsPublic(Type t)
+    private static bool IsPublic(Type t)
     {
         return t.IsPublic || t.IsNestedPublic;
     }
@@ -310,7 +313,7 @@ public class ReflectionTypesCollector
     /// Without full namespace, only short name.
     /// If namespace is needed, it can be improved.
     /// </summary>
-    private string GetFriendlyName(Type t)
+    private static string GetFriendlyName(Type t)
     {
         if (t.IsArray)
         {
@@ -336,7 +339,7 @@ public class ReflectionTypesCollector
             var args = t.GetGenericArguments().Select(GetFriendlyName).ToArray();
             return $"{name}<{string.Join(", ", args)}>";
         }
-        
+
         return t.FullName ?? t.Name; //return t.Name;
     }
 }

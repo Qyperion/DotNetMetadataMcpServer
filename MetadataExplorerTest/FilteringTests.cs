@@ -8,25 +8,22 @@ namespace MetadataExplorerTest
     {
         public ProjectMetadata ScanProject(string projectFileAbsolutePath)
         {
-            return new ProjectMetadata 
+            return new ProjectMetadata
             {
                 AssemblyPath = "/dummy/path/MyMainAssembly.dll",
-                ProjectTypes = new List<TypeInfoModel>
-                {
+                ProjectTypes =
+                [
                     new TypeInfoModel { FullName = "MyNamespace.MyType" },
                     new TypeInfoModel { FullName = "OtherNamespace.MyOtherType" }
-                },
-                Dependencies = new List<DependencyInfo>
-                {
-                    new DependencyInfo 
+                ],
+                Dependencies =
+                [
+                    new DependencyInfo
                     {
                         Name = "DepAssembly.dll",
-                        Types = new List<TypeInfoModel>
-                        {
-                            new TypeInfoModel { FullName = "DepNamespace.DepType" }
-                        }
+                        Types = [new TypeInfoModel { FullName = "DepNamespace.DepType" }]
                     }
-                }
+                ]
             };
         }
 
@@ -45,13 +42,13 @@ namespace MetadataExplorerTest
         {
             _fakeScanner = new FakeDependenciesScanner();
         }
-        
+
         [TearDown]
         public void Dispose()
         {
             _fakeScanner.Dispose();
         }
-        
+
 
         [Test]
         public void TypeToolService_FiltersByAllowedNamespaces_AndPaginates()
@@ -115,7 +112,7 @@ namespace MetadataExplorerTest
             Assert.That(assemblies.First(), Is.EqualTo("DepAssembly.dll"));
             Assert.That(response.CurrentPage, Is.EqualTo(pageNumber));
         }
-        
+
         [Test]
         public void TypeToolService_ShouldReturnAllTypes_WhenNoAllowedNamespacesAndNoFilters()
         {
@@ -163,7 +160,7 @@ namespace MetadataExplorerTest
             // Assert: Should return types from the specified namespaces only.
             Assert.That(response.TypeData.Count, Is.EqualTo(2));
         }
-        
+
         [Test]
         public void TypeToolService_ShouldHandleEmptyResults()
         {
@@ -196,7 +193,7 @@ namespace MetadataExplorerTest
             // Assert: Expect exactly 2 matching types.
             Assert.That(response.TypeData.Count, Is.EqualTo(2));
         }
-        
+
         [Test]
         public void TypeToolService_ShouldReturnEmpty_WhenPageNumberIsNegative()
         {

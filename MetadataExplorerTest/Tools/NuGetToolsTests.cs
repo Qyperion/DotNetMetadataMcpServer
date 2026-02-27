@@ -45,7 +45,7 @@ public class NuGetToolsTests
         // Assert
         Assert.That(resultJson, Is.Not.Null);
         Assert.That(resultJson, Is.Not.Empty);
-        
+
         var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.Packages, Is.Not.Empty);
@@ -62,21 +62,21 @@ public class NuGetToolsTests
             _logger,
             searchQuery: "json",
             includePrerelease: false,
-            fullTextFiltersWithWildCardSupport: new List<string> { "*Newtonsoft*" },
+            fullTextFiltersWithWildCardSupport: ["*Newtonsoft*"],
             pageNumber: 1);
 
         // Assert
         Assert.That(resultJson, Is.Not.Null);
-        
+
         var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.Packages, Is.Not.Empty);
-        
+
         // All results should contain "Newtonsoft" due to filter
         foreach (var package in response.Packages)
         {
             Assert.That(
-                package.Id.Contains("Newtonsoft", StringComparison.OrdinalIgnoreCase) || 
+                package.Id.Contains("Newtonsoft", StringComparison.OrdinalIgnoreCase) ||
                 (package.Description?.Contains("Newtonsoft", StringComparison.OrdinalIgnoreCase) ?? false),
                 Is.True,
                 $"Package {package.Id} doesn't match filter *Newtonsoft*");
@@ -98,12 +98,12 @@ public class NuGetToolsTests
 
         // Assert
         Assert.That(resultJson, Is.Not.Null);
-        
+
         var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.PackageId, Is.EqualTo("Newtonsoft.Json"));
         Assert.That(response.Versions, Is.Not.Empty);
-        
+
         // Verify versions are properly formatted
         foreach (var version in response.Versions)
         {
@@ -122,15 +122,15 @@ public class NuGetToolsTests
             _logger,
             packageId: "Newtonsoft.Json",
             includePrerelease: false,
-            fullTextFiltersWithWildCardSupport: new List<string> { "13.*" },
+            fullTextFiltersWithWildCardSupport: ["13.*"],
             pageNumber: 1);
 
         // Assert
         Assert.That(resultJson, Is.Not.Null);
-        
+
         var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
-        
+
         // All versions should start with "13." due to filter
         foreach (var version in response.Versions)
         {
@@ -162,7 +162,7 @@ public class NuGetToolsTests
         // Assert
         Assert.That(resultJson, Is.Not.Null);
         Assert.That(resultJson, Contains.Substring("\n")); // Indented JSON should contain newlines
-        
+
         // Verify it's still valid JSON
         var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
@@ -183,17 +183,17 @@ public class NuGetToolsTests
 
         // Assert
         Assert.That(resultJson, Is.Not.Null);
-        
+
         var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(resultJson);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.Versions, Is.Not.Empty);
-        
+
         // Find a version with dependencies
         var versionWithDeps = response.Versions.FirstOrDefault(v => v.DependencyGroups.Any());
         if (versionWithDeps != null)
         {
             Assert.That(versionWithDeps.DependencyGroups, Is.Not.Empty);
-            
+
             foreach (var depGroup in versionWithDeps.DependencyGroups)
             {
                 Assert.That(depGroup.TargetFramework, Is.Not.Null.And.Not.Empty);
@@ -234,13 +234,13 @@ public class NuGetToolsTests
         // Assert
         var page1 = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(page1Json);
         var page2 = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(page2Json);
-        
+
         Assert.That(page1, Is.Not.Null);
         Assert.That(page2, Is.Not.Null);
-        
+
         Assert.That(page1!.CurrentPage, Is.EqualTo(1));
         Assert.That(page2!.CurrentPage, Is.EqualTo(2));
-        
+
         // Pages should have different packages (assuming there are more than 5 results)
         if (page1.Packages.Count > 0 && page2.Packages.Count > 0)
         {

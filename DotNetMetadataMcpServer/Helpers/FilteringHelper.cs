@@ -8,11 +8,11 @@ public static class FilteringHelper
     {
         return "^" + Regex.Escape(filter).Replace("\\*", ".*") + "$";
     }
-    
+
     public static Predicate<string> PrepareFilteringPredicate(string filter)
     {
         var pattern = PrepareFilteringPattern(filter);
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        return new Predicate<string>(input => regex.IsMatch(input));
+        return input => regex.IsMatch(input);
     }
 }

@@ -1,9 +1,9 @@
-using System.ComponentModel;
-using System.Text.Json;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
+using System.Text.Json;
 
 namespace DotNetMetadataMcpServer.Tools;
 
@@ -23,25 +23,25 @@ public sealed class AssemblyTools
         [Description("Page number (1-based)")] int pageNumber = 1)
     {
         using var _ = logger.BeginScope("{AssemblyToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to retrieve assemblies list for project: {ProjectPath}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to retrieve assemblies list for project: {ProjectPath}, Page: {PageNumber}",
             projectFileAbsolutePath, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
             var result = assemblyToolService.GetAssemblies(
                 projectFileAbsolutePath: projectFileAbsolutePath,
                 filters: filters,
                 pageNumber: pageNumber,
                 pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+
             logger.LogDebug("Project scanned successfully: {@AssembliesScanResult}", result);
-            
+
             var json = toolsConfiguration.Value.IndentResponse
                 ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
-            
+
             return json;
         }
         catch (Exception ex)

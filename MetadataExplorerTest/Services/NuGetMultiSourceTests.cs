@@ -19,15 +19,15 @@ public class NuGetMultiSourceTests
         // Arrange
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -36,7 +36,7 @@ public class NuGetMultiSourceTests
         // Act
         var result = await service.SearchPackagesAsync(
             searchQuery: "Newtonsoft.Json",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 10);
@@ -54,15 +54,15 @@ public class NuGetMultiSourceTests
         // Arrange - Configure multiple sources (nuget.org is always available)
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -71,7 +71,7 @@ public class NuGetMultiSourceTests
         // Act - Search for a common package
         var result = await service.SearchPackagesAsync(
             searchQuery: "System.Text.Json",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 20);
@@ -89,15 +89,15 @@ public class NuGetMultiSourceTests
         // Arrange
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -106,7 +106,7 @@ public class NuGetMultiSourceTests
         // Act
         var result = await service.GetPackageVersionsAsync(
             packageId: "ModelContextProtocol",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: true,
             pageNumber: 1,
             pageSize: 20);
@@ -124,7 +124,7 @@ public class NuGetMultiSourceTests
         // Arrange - Empty sources list
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>()
+            NuGetSources = []
         };
 
         var options = Options.Create(configuration);
@@ -139,15 +139,15 @@ public class NuGetMultiSourceTests
         // Arrange - All sources disabled
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = false
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -162,15 +162,15 @@ public class NuGetMultiSourceTests
         // Arrange - Even with one source, test deduplication logic
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -179,7 +179,7 @@ public class NuGetMultiSourceTests
         // Act
         var result = await service.SearchPackagesAsync(
             searchQuery: "Serilog",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 20);
@@ -198,21 +198,22 @@ public class NuGetMultiSourceTests
         // Arrange - One valid source and one invalid (will fail)
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "invalid",
                     Url = "https://invalid-nuget-source.local/v3/index.json",
                     Enabled = true
                 },
+
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -221,7 +222,7 @@ public class NuGetMultiSourceTests
         // Act - Should still work with the valid source
         var result = await service.SearchPackagesAsync(
             searchQuery: "NUnit",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 10);
@@ -238,15 +239,15 @@ public class NuGetMultiSourceTests
         // Arrange - Single source to verify deterministic behavior
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -255,14 +256,14 @@ public class NuGetMultiSourceTests
         // Act - Search for a well-known package multiple times
         var result1 = await service.SearchPackagesAsync(
             searchQuery: "Newtonsoft.Json",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 5);
 
         var result2 = await service.SearchPackagesAsync(
             searchQuery: "Newtonsoft.Json",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: false,
             pageNumber: 1,
             pageSize: 5);
@@ -290,21 +291,22 @@ public class NuGetMultiSourceTests
         // Second source (lower priority): nuget.org
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "dotnet-core (MyGet)",
                     Url = "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
                     Enabled = true
                 },
+
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -313,7 +315,7 @@ public class NuGetMultiSourceTests
         // Act - Search for packages that might exist in both sources
         var result = await service.SearchPackagesAsync(
             searchQuery: "System.Runtime",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: true,
             pageNumber: 1,
             pageSize: 10);
@@ -325,7 +327,7 @@ public class NuGetMultiSourceTests
         // Run the same query again to verify determinism
         var result2 = await service.SearchPackagesAsync(
             searchQuery: "System.Runtime",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: true,
             pageNumber: 1,
             pageSize: 10);
@@ -354,21 +356,22 @@ public class NuGetMultiSourceTests
         // Arrange - Configure MyGet public feed alongside nuget.org
         var configuration = new ToolsConfiguration
         {
-            NuGetSources = new List<NuGetSourceConfiguration>
-            {
+            NuGetSources =
+            [
                 new NuGetSourceConfiguration
                 {
                     Name = "nuget.org",
                     Url = "https://api.nuget.org/v3/index.json",
                     Enabled = true
                 },
+
                 new NuGetSourceConfiguration
                 {
                     Name = "dotnet-core (MyGet)",
                     Url = "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json",
                     Enabled = true
                 }
-            }
+            ]
         };
 
         var options = Options.Create(configuration);
@@ -377,7 +380,7 @@ public class NuGetMultiSourceTests
         // Act - Search for packages that might be on both feeds
         var result = await service.SearchPackagesAsync(
             searchQuery: "System.Runtime",
-            filters: new List<string>(),
+            filters: [],
             includePrerelease: true,
             pageNumber: 1,
             pageSize: 20);

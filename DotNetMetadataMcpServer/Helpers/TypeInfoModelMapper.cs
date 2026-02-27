@@ -16,16 +16,16 @@ public static class TypeInfoModelMapper
 
         if (model.Constructors.Any())
             result.Constructors = model.Constructors.Select(FormatConstructor).ToList();
-        
+
         if (model.Methods.Any())
             result.Methods = model.Methods.Select(FormatMethod).ToList();
-        
+
         if (model.Properties.Any())
             result.Properties = model.Properties.Select(FormatProperty).ToList();
-        
+
         if (model.Fields.Any())
             result.Fields = model.Fields.Select(FormatField).ToList();
-        
+
         if (model.Events.Any())
             result.Events = model.Events.Select(FormatEvent).ToList();
 
@@ -41,9 +41,9 @@ public static class TypeInfoModelMapper
     private static string FormatMethod(MethodInfoModel method)
     {
         var modifiers = new List<string>();
-        
+
         // Order: static/abstract/virtual/sealed/override
-        if (method.IsStatic) 
+        if (method.IsStatic)
         {
             modifiers.Add("static");
         }
@@ -60,7 +60,7 @@ public static class TypeInfoModelMapper
         {
             modifiers.Add("virtual");
         }
-        
+
         var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
         var parameters = string.Join(", ", method.Parameters.Select(FormatParameter));
         return $"{modifierString}{method.ReturnType} {method.Name}({parameters})";
@@ -69,10 +69,10 @@ public static class TypeInfoModelMapper
     private static string FormatParameter(ParameterInfoModel param)
     {
         var prefix = !string.IsNullOrEmpty(param.Modifier) ? param.Modifier + " " : "";
-        var nullableType = param.IsOptional && !param.ParameterType.EndsWith("?") 
-            ? param.ParameterType + "?" 
+        var nullableType = param.IsOptional && !param.ParameterType.EndsWith("?")
+            ? param.ParameterType + "?"
             : param.ParameterType;
-            
+
         // Always add "= null" for optional parameters
         var suffix = param.IsOptional ? " = null" : "";
         return $"{prefix}{nullableType} {param.Name}{suffix}";
@@ -81,7 +81,7 @@ public static class TypeInfoModelMapper
     private static string FormatProperty(PropertyInfoModel prop)
     {
         var modifiers = new List<string>();
-        
+
         if (prop.IsStatic) modifiers.Add("static");
         else
         {
@@ -93,25 +93,25 @@ public static class TypeInfoModelMapper
                 modifiers.Add("override");
             }
         }
-        
+
         if (prop.IsRequired) modifiers.Add("required");
-        
+
         var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
         var accessors = "";
-        if (prop.HasPublicGetter && prop.HasPublicSetter) 
+        if (prop is { HasPublicGetter: true, HasPublicSetter: true })
             accessors = prop.IsInit ? " { get; init; }" : " { get; set; }";
-        else if (prop.HasPublicGetter) 
+        else if (prop.HasPublicGetter)
             accessors = " { get; }";
-        else if (prop.HasPublicSetter) 
+        else if (prop.HasPublicSetter)
             accessors = prop.IsInit ? " { init; }" : " { set; }";
-            
+
         return $"{modifierString}{prop.PropertyType} {prop.Name}{accessors}";
     }
 
     private static string FormatField(FieldInfoModel field)
     {
         var modifiers = new List<string>();
-        
+
         // Order: static/const/required/readonly
         if (field.IsConstant)
         {
@@ -123,7 +123,7 @@ public static class TypeInfoModelMapper
             if (field.IsRequired) modifiers.Add("required");
             if (field.IsReadOnly) modifiers.Add("readonly");
         }
-        
+
         var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
         return $"{modifierString}{field.FieldType} {field.Name}";
     }

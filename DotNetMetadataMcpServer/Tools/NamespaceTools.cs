@@ -1,9 +1,9 @@
-using System.ComponentModel;
-using System.Text.Json;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
+using System.Text.Json;
 
 namespace DotNetMetadataMcpServer.Tools;
 
@@ -24,28 +24,28 @@ public sealed class NamespaceTools
         [Description("Page number (1-based)")] int pageNumber = 1)
     {
         using var _ = logger.BeginScope("{NamespaceToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to retrieve namespaces for project: {ProjectPath}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to retrieve namespaces for project: {ProjectPath}, Page: {PageNumber}",
             projectFileAbsolutePath, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
-            var assemblies = assemblyNames ?? new List<string>();
-            
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
+            var assemblies = assemblyNames ?? [];
+
             var result = namespaceToolService.GetNamespaces(
                 projectFileAbsolutePath: projectFileAbsolutePath,
                 allowedAssemblyNames: assemblies,
                 filters: filters,
                 pageNumber: pageNumber,
                 pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+
             logger.LogDebug("Namespaces retrieved successfully: {@NamespacesScanResult}", result);
-            
+
             var json = toolsConfiguration.Value.IndentResponse
                 ? JsonSerializer.Serialize(result, IndentedOptions)
                 : JsonSerializer.Serialize(result);
-            
+
             return json;
         }
         catch (Exception ex)

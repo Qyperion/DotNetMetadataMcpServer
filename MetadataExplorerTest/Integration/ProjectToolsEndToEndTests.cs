@@ -34,7 +34,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         return result switch
         {
             TextContent tc => tc.Text ?? throw new InvalidOperationException("TextContent.Text is null"),
-            JsonElement je when je.ValueKind == JsonValueKind.String => je.GetString()!,
+            JsonElement { ValueKind: JsonValueKind.String } je => je.GetString()!,
             JsonElement je when je.TryGetProperty("content", out var content) =>
                 content[0].GetProperty("text").GetString()!,
             JsonElement je => je.GetRawText(),

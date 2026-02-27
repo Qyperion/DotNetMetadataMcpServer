@@ -22,8 +22,7 @@ namespace DotNetMetadataMcpServer.Services
 
             var allowedAssemblyNamesWithoutExtension = allowedAssemblyNames
                 .Select(NormalizeAssemblyName)
-                .Where(s => s != null)
-                .Select(s => s!.ToLowerInvariant())
+                .Select(s => s.ToLowerInvariant())
                 .ToHashSet();
 
             // Build the allowed namespaces only from types of assemblies matching allowedAssemblyNames.
@@ -81,7 +80,7 @@ namespace DotNetMetadataMcpServer.Services
         {
             return types
                 .Where(t => !string.IsNullOrWhiteSpace(t.FullName) && t.FullName.Contains('.'))
-                .Select(t => t.FullName.Substring(0, t.FullName.LastIndexOf('.')));
+                .Select(t => t.FullName[..t.FullName.LastIndexOf('.')]);
         }
 
         /// <summary>
@@ -96,6 +95,7 @@ namespace DotNetMetadataMcpServer.Services
             {
                 return name[..^4];
             }
+
             return name;
         }
     }

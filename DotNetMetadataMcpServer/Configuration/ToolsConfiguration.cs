@@ -3,18 +3,18 @@ namespace DotNetMetadataMcpServer.Configuration;
 public class ToolsConfiguration
 {
     public const string SectionName = "Tools";
-    
+
     public int DefaultPageSize { get; set; } = 20;
     public bool IndentResponse { get; set; } = true;
-    public List<NuGetSourceConfiguration> NuGetSources { get; set; } = new()
-    {
+    public List<NuGetSourceConfiguration> NuGetSources { get; set; } =
+    [
         new NuGetSourceConfiguration
         {
             Name = "nuget.org",
             Url = "https://api.nuget.org/v3/index.json",
             Enabled = true
         }
-    };
+    ];
 }
 
 public class NuGetSourceConfiguration

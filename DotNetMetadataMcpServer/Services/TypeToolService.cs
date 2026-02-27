@@ -7,7 +7,7 @@ namespace DotNetMetadataMcpServer.Services
     {
         private readonly IDependenciesScanner _scanner;
         private readonly IProjectMetadataCache _cache;
-        
+
         public TypeToolService(IDependenciesScanner scanner, IProjectMetadataCache cache)
         {
             _scanner = scanner;
@@ -15,33 +15,33 @@ namespace DotNetMetadataMcpServer.Services
         }
 
         // Changed signature: now accepts a projectFileAbsolutePath and an allowed list of namespaces.
-        public TypeToolResponse GetTypes(string projectFileAbsolutePath, 
+        public TypeToolResponse GetTypes(string projectFileAbsolutePath,
             List<string> allowedNamespaces, List<string> filters, int pageNumber, int pageSize)
         {
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Collect all types from project and dependencies.
             var allTypes = metadata.ProjectTypes.Concat(metadata.Dependencies.SelectMany(d => d.Types));
-            
+
             // If allowed namespaces are provided, only retain types whose namespace (the part before the last '.') is allowed.
             if (allowedNamespaces.Any())
             {
-                allTypes = allTypes.Where(t => 
-                    !string.IsNullOrEmpty(t.FullName) && 
-                    t.FullName.Contains('.') && 
-                    allowedNamespaces.Contains(t.FullName.Substring(0, t.FullName.LastIndexOf('.')), StringComparer.OrdinalIgnoreCase)
+                allTypes = allTypes.Where(t =>
+                    !string.IsNullOrEmpty(t.FullName) &&
+                    t.FullName.Contains('.') &&
+                    allowedNamespaces.Contains(t.FullName[..t.FullName.LastIndexOf('.')], StringComparer.OrdinalIgnoreCase)
                 );
             }
-            
+
             // Apply additional filter if provided.
             if (filters.Any())
             {
                 var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
                 allTypes = allTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
             }
-            
+
             var allTypesList = allTypes.Select(TypeInfoModelMapper.ToSimpleTypeInfo).ToList();
             var (paged, availablePages) = PaginationHelper.FilterAndPaginate(allTypesList, _ => true, pageNumber, pageSize);
-            
+
             return new TypeToolResponse
             {
                 TypeData = paged,
