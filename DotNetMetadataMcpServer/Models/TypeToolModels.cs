@@ -13,6 +13,9 @@ namespace DotNetMetadataMcpServer.Models
     {
         [Required]
         public required string FullName { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Documentation { get; set; }
         
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<string>? Implements { get; set; }

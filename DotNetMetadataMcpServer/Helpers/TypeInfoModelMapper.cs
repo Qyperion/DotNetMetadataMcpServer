@@ -8,7 +8,8 @@ public static class TypeInfoModelMapper
     {
         var result = new SimpleTypeInfo
         {
-            FullName = model.FullName
+            FullName = model.FullName,
+            Documentation = model.Documentation
         };
 
         if (model.Implements.Any())
@@ -35,7 +36,8 @@ public static class TypeInfoModelMapper
     private static string FormatConstructor(ConstructorInfoModel ctor)
     {
         var parameters = string.Join(", ", ctor.Parameters.Select(p => $"{p.ParameterType} {p.Name}"));
-        return $"({parameters})";
+        var signature = $"({parameters})";
+        return AppendDocumentation(signature, ctor.Documentation);
     }
 
     private static string FormatMethod(MethodInfoModel method)
@@ -63,7 +65,8 @@ public static class TypeInfoModelMapper
 
         var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
         var parameters = string.Join(", ", method.Parameters.Select(FormatParameter));
-        return $"{modifierString}{method.ReturnType} {method.Name}({parameters})";
+        var signature = $"{modifierString}{method.ReturnType} {method.Name}({parameters})";
+        return AppendDocumentation(signature, method.Documentation);
     }
 
     private static string FormatParameter(ParameterInfoModel param)
@@ -105,7 +108,8 @@ public static class TypeInfoModelMapper
         else if (prop.HasPublicSetter)
             accessors = prop.IsInit ? " { init; }" : " { set; }";
 
-        return $"{modifierString}{prop.PropertyType} {prop.Name}{accessors}";
+        var signature = $"{modifierString}{prop.PropertyType} {prop.Name}{accessors}";
+        return AppendDocumentation(signature, prop.Documentation);
     }
 
     private static string FormatField(FieldInfoModel field)
@@ -125,12 +129,25 @@ public static class TypeInfoModelMapper
         }
 
         var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
-        return $"{modifierString}{field.FieldType} {field.Name}";
+        var signature = $"{modifierString}{field.FieldType} {field.Name}";
+        return AppendDocumentation(signature, field.Documentation);
     }
 
     private static string FormatEvent(EventInfoModel evt)
     {
         var staticModifier = evt.IsStatic ? "static " : "";
-        return $"{staticModifier}event {evt.EventHandlerType} {evt.Name}";
+        var signature = $"{staticModifier}event {evt.EventHandlerType} {evt.Name}";
+        return AppendDocumentation(signature, evt.Documentation);
+    }
+
+    /// <summary>
+    /// Appends XML documentation summary to a formatted signature string.
+    /// Uses " — " (em dash) as separator for readability.
+    /// </summary>
+    private static string AppendDocumentation(string signature, string? documentation)
+    {
+        return string.IsNullOrEmpty(documentation)
+            ? signature
+            : $"{signature} — {documentation}";
     }
 }

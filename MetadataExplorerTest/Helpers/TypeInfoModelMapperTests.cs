@@ -943,4 +943,235 @@ public class TypeInfoModelMapperTests
             "void Configure(string name, Options? options = null)"
         ]));
     }
+
+    #region Documentation Tests
+
+    [Test]
+    public void ToSimpleTypeInfo_MapsTypeDocumentation()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Documentation = "A test class for doing things."
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Documentation, Is.EqualTo("A test class for doing things."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_NullDocumentation_RemainsNull()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Documentation = null
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Documentation, Is.Null);
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_MethodWithDocumentation_AppendsEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Calculate",
+                    ReturnType = "double",
+                    Documentation = "Calculates the result.",
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods, Has.Exactly(1).EqualTo(
+            "double Calculate(double x) \u2014 Calculates the result."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_MethodWithoutDocumentation_NoEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Calculate",
+                    ReturnType = "double",
+                    Documentation = null,
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods, Has.Exactly(1).EqualTo("double Calculate(double x)"));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_PropertyWithDocumentation_AppendsEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Properties =
+            [
+                new PropertyInfoModel
+                {
+                    Name = "Name",
+                    PropertyType = "string",
+                    HasPublicGetter = true,
+                    HasPublicSetter = true,
+                    Documentation = "Gets or sets the name."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Properties, Has.Exactly(1).EqualTo(
+            "string Name { get; set; } \u2014 Gets or sets the name."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_FieldWithDocumentation_AppendsEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Fields =
+            [
+                new FieldInfoModel
+                {
+                    Name = "MaxRetries",
+                    FieldType = "int",
+                    IsConstant = true,
+                    Documentation = "Maximum number of retries."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Fields, Has.Exactly(1).EqualTo(
+            "const int MaxRetries \u2014 Maximum number of retries."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_EventWithDocumentation_AppendsEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Events =
+            [
+                new EventInfoModel
+                {
+                    Name = "OnChanged",
+                    EventHandlerType = "EventHandler",
+                    Documentation = "Raised when a change occurs."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Events, Has.Exactly(1).EqualTo(
+            "event EventHandler OnChanged \u2014 Raised when a change occurs."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_ConstructorWithDocumentation_AppendsEmDash()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Constructors =
+            [
+                new ConstructorInfoModel
+                {
+                    Name = ".ctor",
+                    Documentation = "Creates a new instance.",
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "name", ParameterType = "string" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Constructors, Has.Exactly(1).EqualTo(
+            "(string name) \u2014 Creates a new instance."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_EmptyDocumentation_TreatedAsNoDoc()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "DoStuff",
+                    ReturnType = "void",
+                    Documentation = "",
+                    Parameters = []
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods, Has.Exactly(1).EqualTo("void DoStuff()"));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_StaticMethodWithDocumentation_PreservesModifiers()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Create",
+                    ReturnType = "TestClass",
+                    IsStatic = true,
+                    Documentation = "Factory method.",
+                    Parameters = []
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods, Has.Exactly(1).EqualTo(
+            "static TestClass Create() \u2014 Factory method."));
+    }
+
+    #endregion
 }

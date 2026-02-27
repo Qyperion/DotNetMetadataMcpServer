@@ -33,6 +33,7 @@ public class DependencyInfo
 public class TypeInfoModel
 {
     public string FullName { get; set; } = "";  // Considering generics (friendly name)
+    public string? Documentation { get; set; }    // XML doc summary for the type
     public List<string> Implements { get; set; } = [];
     public List<ConstructorInfoModel> Constructors { get; set; } = [];
     public List<MethodInfoModel> Methods { get; set; } = [];
@@ -44,6 +45,7 @@ public class TypeInfoModel
 public class ConstructorInfoModel
 {
     public string Name { get; set; } = "";
+    public string? Documentation { get; set; }
     public List<string> ParameterTypes { get; set; } = [];
     public List<ParameterInfoModel> Parameters { get; set; } = [];
 }
@@ -52,6 +54,8 @@ public class MethodInfoModel
 {
     public string Name { get; set; } = "";
     public string ReturnType { get; set; } = "";
+    public string? Documentation { get; set; }
+    public string? ReturnsDocumentation { get; set; }
     public List<ParameterInfoModel> Parameters { get; set; } = [];
     public bool IsStatic { get; set; }
     public bool IsAbstract { get; set; }
@@ -64,6 +68,7 @@ public class ParameterInfoModel
 {
     public string Name { get; set; } = "";
     public string ParameterType { get; set; } = "";
+    public string? Documentation { get; set; }
     public bool IsOptional { get; set; }
     public bool HasDefaultValue { get; set; }
     public string Modifier { get; set; } = ""; // "ref", "out", "in", "params"
@@ -73,6 +78,7 @@ public class PropertyInfoModel
 {
     public string Name { get; set; } = "";
     public string PropertyType { get; set; } = "";
+    public string? Documentation { get; set; }
     public bool HasPublicGetter { get; set; }
     public bool HasPublicSetter { get; set; }
     public bool IsStatic { get; set; }
@@ -88,6 +94,7 @@ public class FieldInfoModel
 {
     public string Name { get; set; } = "";
     public string FieldType { get; set; } = "";
+    public string? Documentation { get; set; }
     public bool IsStatic { get; set; }
     public bool IsReadOnly { get; set; }
     public bool IsConstant { get; set; }
@@ -98,5 +105,6 @@ public class EventInfoModel
 {
     public string Name { get; set; } = "";
     public string EventHandlerType { get; set; } = "";
+    public string? Documentation { get; set; }
     public bool IsStatic { get; set; }
 }

@@ -32,6 +32,13 @@ public class ReflectionTypesCollector
 
         _logger.LogInformation("Loading assembly (isolated): {Path}", fullPath);
 
+        // Try to load XML documentation alongside the assembly
+        var xmlDocs = XmlDocumentationProvider.TryLoad(fullPath, _logger);
+        if (xmlDocs != null)
+        {
+            _logger.LogInformation("Loaded XML documentation with {Count} members for {Path}", xmlDocs.MemberCount, fullPath);
+        }
+
         // Use a collectible ALC and load from memory to avoid locking files
         var baseDir = Path.GetDirectoryName(fullPath) ?? string.Empty;
         using var loader = new TemporaryLoadContext(baseDir, _logger);
@@ -77,7 +84,7 @@ public class ReflectionTypesCollector
 
             try
             {
-                var ti = CollectTypeInfo(type);
+                var ti = CollectTypeInfo(type, xmlDocs);
                 result.Add(ti);
             }
             catch (Exception ex)
@@ -92,11 +99,12 @@ public class ReflectionTypesCollector
     }
 
 
-    private TypeInfoModel CollectTypeInfo(Type type)
+    private TypeInfoModel CollectTypeInfo(Type type, XmlDocumentationProvider? xmlDocs)
     {
         var model = new TypeInfoModel
         {
             FullName = type.FullName ?? type.Name,
+            Documentation = xmlDocs?.GetTypeSummary(type),
             // Collect interfaces
             Implements = type.GetInterfaces()
                 .Select(i => i.Name)
@@ -109,17 +117,20 @@ public class ReflectionTypesCollector
         {
             try
             {
+                var paramDocs = xmlDocs?.GetMethodParameters(ctor);
                 var parameters = ctor.GetParameters()
                     .Select(p => new ParameterInfoModel
                     {
                         Name = p.Name ?? "",
-                        ParameterType = p.ParameterType.Name
+                        ParameterType = p.ParameterType.Name,
+                        Documentation = paramDocs?.GetValueOrDefault(p.Name ?? "")
                     })
                     .ToList();
 
                 constructors.Add(new ConstructorInfoModel
                 {
                     Name = ctor.Name,
+                    Documentation = xmlDocs?.GetConstructorSummary(ctor),
                     Parameters = parameters
                 });
             }
@@ -136,7 +147,7 @@ public class ReflectionTypesCollector
         {
             try
             {
-                var mi = CollectMethodInfo(m);
+                var mi = CollectMethodInfo(m, xmlDocs);
                 methods.Add(mi);
             }
             catch (Exception ex)
@@ -162,7 +173,7 @@ public class ReflectionTypesCollector
                 if (!hasPublicGetter && !hasPublicSetter)
                     continue;
 
-                var propModel = CollectPropertyInfo(p);
+                var propModel = CollectPropertyInfo(p, xmlDocs);
                 model.Properties.Add(propModel);
             }
             catch (Exception ex)
@@ -179,7 +190,7 @@ public class ReflectionTypesCollector
             {
                 if (!f.IsPublic)
                     continue; // although GetFields(Public) already excludes non-public, just in case
-                var fi = CollectFieldInfo(f);
+                var fi = CollectFieldInfo(f, xmlDocs);
                 model.Fields.Add(fi);
             }
             catch (Exception ex)
@@ -207,7 +218,8 @@ public class ReflectionTypesCollector
                 {
                     Name = e.Name,
                     EventHandlerType = GetFriendlyName(e.EventHandlerType),
-                    IsStatic = (addM?.IsStatic ?? false) || (removeM?.IsStatic ?? false)
+                    IsStatic = (addM?.IsStatic ?? false) || (removeM?.IsStatic ?? false),
+                    Documentation = xmlDocs?.GetEventSummary(e)
                 };
                 model.Events.Add(ei);
             }
@@ -220,12 +232,16 @@ public class ReflectionTypesCollector
         return model;
     }
 
-    private static MethodInfoModel CollectMethodInfo(MethodInfo m)
+    private static MethodInfoModel CollectMethodInfo(MethodInfo m, XmlDocumentationProvider? xmlDocs)
     {
+        var paramDocs = xmlDocs?.GetMethodParameters(m);
+
         return new MethodInfoModel
         {
             Name = m.Name,
             ReturnType = GetFriendlyName(m.ReturnType),
+            Documentation = xmlDocs?.GetMethodSummary(m),
+            ReturnsDocumentation = xmlDocs?.GetMethodReturns(m),
             IsStatic = m.IsStatic,
             IsAbstract = m.IsAbstract,
             IsVirtual = m is { IsVirtual: true, IsAbstract: false },
@@ -236,6 +252,7 @@ public class ReflectionTypesCollector
                 {
                     Name = p.Name ?? "",
                     ParameterType = GetFriendlyName(p.ParameterType),
+                    Documentation = paramDocs?.GetValueOrDefault(p.Name ?? ""),
                     IsOptional = p.IsOptional,
                     HasDefaultValue = p.HasDefaultValue,
                     Modifier = GetParameterModifier(p)
@@ -252,7 +269,7 @@ public class ReflectionTypesCollector
         return "";
     }
 
-    private static PropertyInfoModel CollectPropertyInfo(PropertyInfo p)
+    private static PropertyInfoModel CollectPropertyInfo(PropertyInfo p, XmlDocumentationProvider? xmlDocs)
     {
         var getMethod = p.GetGetMethod(false);
         var setMethod = p.GetSetMethod(false);
@@ -274,6 +291,7 @@ public class ReflectionTypesCollector
         {
             Name = p.Name,
             PropertyType = GetFriendlyName(p.PropertyType),
+            Documentation = xmlDocs?.GetPropertySummary(p),
             HasPublicGetter = getMethod != null,
             HasPublicSetter = setMethod != null,
             IsStatic = (getMethod?.IsStatic ?? false) || (setMethod?.IsStatic ?? false),
@@ -289,12 +307,13 @@ public class ReflectionTypesCollector
         };
     }
 
-    private FieldInfoModel CollectFieldInfo(FieldInfo f)
+    private FieldInfoModel CollectFieldInfo(FieldInfo f, XmlDocumentationProvider? xmlDocs)
     {
         return new FieldInfoModel
         {
             Name = f.Name,
             FieldType = GetFriendlyName(f.FieldType),
+            Documentation = xmlDocs?.GetFieldSummary(f),
             IsStatic = f.IsStatic,
             IsReadOnly = f.IsInitOnly,
             IsConstant = f is { IsLiteral: true, IsInitOnly: false },
