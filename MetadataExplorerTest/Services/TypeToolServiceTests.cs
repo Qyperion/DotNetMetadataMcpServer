@@ -19,7 +19,7 @@ public class TypeToolServiceTests
         var relativePath = Path.Combine(testDirectory, "../../../../DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj");
         _testProjectPath = Path.GetFullPath(relativePath);
         _scanner = new DependenciesScanner(new MsBuildHelper(), new ReflectionTypesCollector());
-        _service = new TypeToolService(_scanner);
+        _service = new TypeToolService(_scanner, new ProjectMetadataCache());
     }
 
     [TearDown]
@@ -44,14 +44,14 @@ public class TypeToolServiceTests
     [Test]
     public void GetTypes_WithFilters_ReturnsFilteredResults()
     {
-        const string filter = "*Parameters";
+        const string filter = "*Configuration";
         
         var filters = new List<string> { filter };
         var response = _service.GetTypes(_testProjectPath, new List<string>(), filters, 1, 20);
         
         Assert.That(response.TypeData, Is.Not.Empty);
         Assert.That(response.TypeData, Is.All.Matches<SimpleTypeInfo>(t => 
-            t.FullName.EndsWith("Parameters")));
+            t.FullName.EndsWith("Configuration")));
     }
 
     [Test]

@@ -6,17 +6,19 @@ namespace DotNetMetadataMcpServer.Services
     public class NamespaceToolService
     {
         private readonly IDependenciesScanner _scanner;
+        private readonly IProjectMetadataCache _cache;
 
-        public NamespaceToolService(IDependenciesScanner scanner)
+        public NamespaceToolService(IDependenciesScanner scanner, IProjectMetadataCache cache)
         {
             _scanner = scanner;
+            _cache = cache;
         }
 
         // Changed signature: now accepts a projectFileAbsolutePath and a list of allowed assembly names.
         public NamespaceToolResponse GetNamespaces(string projectFileAbsolutePath,
             List<string> allowedAssemblyNames, List<string> filters, int pageNumber, int pageSize)
         {
-            var metadata = _scanner.ScanProject(projectFileAbsolutePath);
+            var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
 
             var allowedAssemblyNamesWithoutExtension = allowedAssemblyNames
                 .Select(Path.GetFileNameWithoutExtension)

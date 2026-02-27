@@ -17,7 +17,7 @@ public class TypeReflectionTests
         var testDirectory = TestContext.CurrentContext.TestDirectory;
         _testProjectPath = Path.GetFullPath(Path.Combine(testDirectory, "../../../../DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj"));
         _scanner = new DependenciesScanner(new MsBuildHelper(), new ReflectionTypesCollector());
-        _service = new TypeToolService(_scanner);
+        _service = new TypeToolService(_scanner, new ProjectMetadataCache());
     }
 
     [OneTimeTearDown]

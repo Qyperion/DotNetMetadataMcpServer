@@ -6,17 +6,19 @@ namespace DotNetMetadataMcpServer.Services
     public class TypeToolService
     {
         private readonly IDependenciesScanner _scanner;
+        private readonly IProjectMetadataCache _cache;
         
-        public TypeToolService(IDependenciesScanner scanner)
+        public TypeToolService(IDependenciesScanner scanner, IProjectMetadataCache cache)
         {
             _scanner = scanner;
+            _cache = cache;
         }
 
         // Changed signature: now accepts a projectFileAbsolutePath and an allowed list of namespaces.
         public TypeToolResponse GetTypes(string projectFileAbsolutePath, 
             List<string> allowedNamespaces, List<string> filters, int pageNumber, int pageSize)
         {
-            var metadata = _scanner.ScanProject(projectFileAbsolutePath);
+            var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Collect all types from project and dependencies.
             var allTypes = metadata.ProjectTypes.Concat(metadata.Dependencies.SelectMany(d => d.Types));
             

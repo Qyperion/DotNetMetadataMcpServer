@@ -42,6 +42,7 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
         // Register services as scoped with tracking
         services.AddScoped<MsBuildHelper>();
         services.AddScoped<ReflectionTypesCollector>();
+        services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
         
         services.AddScoped<IDependenciesScanner>(sp =>
         {

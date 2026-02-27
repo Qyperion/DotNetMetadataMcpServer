@@ -71,6 +71,8 @@ public class Program
             // Register configuration
             builder.Services.Configure<ToolsConfiguration>(configuration.GetSection(ToolsConfiguration.SectionName));
             
+            // Register project metadata cache as singleton (shared across all scoped services)
+            builder.Services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
             // Register services as scoped (per request)
             builder.Services.AddScoped<MsBuildHelper>();
             builder.Services.AddScoped<ReflectionTypesCollector>();
