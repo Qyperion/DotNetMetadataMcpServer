@@ -1,4 +1,5 @@
 using DotNetMetadataMcpServer;
+using DotNetMetadataMcpServer.Models;
 using DotNetMetadataMcpServer.Services;
 
 namespace MetadataExplorerTest.Integration;
@@ -27,44 +28,39 @@ public class TypeReflectionTests
     }
 
     [Test]
-    public void GetTypes_ForSimpleTypeInfo_VerifyFormatting()
+    public void GetTypes_ForSimpleTypeInfo_VerifyStructuredProperties()
     {
-        var response = _service.GetTypes(_testProjectPath, [], [], 1, 100);
+        var response = _service.GetTypes(_testProjectPath, [], ["*SimpleTypeInfo"], 1, 100);
 
         var typeInfo = response.TypeData.FirstOrDefault(t => t.FullName.EndsWith("SimpleTypeInfo"));
         Assert.That(typeInfo, Is.Not.Null, "SimpleTypeInfo type should be found");
 
-        // Verify that properties have correct formatting with accessors
+        // Verify that properties are structured PropertyResponse objects
         Assert.That(typeInfo.Properties, Is.Not.Null);
         Assert.That(typeInfo.Properties, Is.Not.Empty, "SimpleTypeInfo should have properties");
-        Assert.That(typeInfo.Properties, Has.All.Matches<string>(p =>
-            p.Contains("{ get; set; }") ||
-            p.Contains("{ get; }") ||
-            p.Contains("{ get; init; }")
-        ));
 
-        // Verify property format matches pattern: [modifiers] Type Name { accessor; }
-        Assert.That(typeInfo.Properties, Has.All.Match(
-            @"^(\w+\s+)*[\w\.]+(\<[\w\.,\s<>]+\>)?\s+\w+\s*{.*}$"));
+        // Verify all properties have names and types
+        Assert.That(typeInfo.Properties, Has.All.Matches<PropertyResponse>(p =>
+            !string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(p.Type)));
 
         // Find FullName property
         var fullNameProp = typeInfo.Properties
-            .FirstOrDefault(p => p.Contains("FullName"));
+            .FirstOrDefault(p => p.Name == "FullName");
 
-        // Verify FullName property existence and format
+        // Verify FullName property existence and structure
         Assert.Multiple(() =>
         {
             Assert.That(fullNameProp, Is.Not.Null, "Should have FullName property");
-            Assert.That(fullNameProp, Contains.Substring("System.String"));
-            Assert.That(fullNameProp, Contains.Substring("{ get; init; }"));
-            Assert.That(fullNameProp, Contains.Substring("required"));
+            Assert.That(fullNameProp!.Type, Does.Contain("String"));
+            Assert.That(fullNameProp.HasGetter, Is.True);
+            Assert.That(fullNameProp.IsRequired, Is.True);
         });
     }
 
     [Test]
     public void GetTypes_ForTypeWithInterfaces_IncludesImplementsList()
     {
-        var response = _service.GetTypes(_testProjectPath, [], [], 1, 100);
+        var response = _service.GetTypes(_testProjectPath, [], ["*Service*"], 1, 100);
 
         // Find a type that implements interfaces (e.g., IDisposable)
         var typeWithInterfaces = response.TypeData.FirstOrDefault(t =>

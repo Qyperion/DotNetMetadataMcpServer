@@ -16,138 +16,106 @@ public static class TypeInfoModelMapper
             result.Implements = model.Implements;
 
         if (model.Constructors.Any())
-            result.Constructors = model.Constructors.Select(FormatConstructor).ToList();
+            result.Constructors = model.Constructors.Select(MapConstructor).ToList();
 
         if (model.Methods.Any())
-            result.Methods = model.Methods.Select(FormatMethod).ToList();
+            result.Methods = model.Methods.Select(MapMethod).ToList();
 
         if (model.Properties.Any())
-            result.Properties = model.Properties.Select(FormatProperty).ToList();
+            result.Properties = model.Properties.Select(MapProperty).ToList();
 
         if (model.Fields.Any())
-            result.Fields = model.Fields.Select(FormatField).ToList();
+            result.Fields = model.Fields.Select(MapField).ToList();
 
         if (model.Events.Any())
-            result.Events = model.Events.Select(FormatEvent).ToList();
+            result.Events = model.Events.Select(MapEvent).ToList();
 
         return result;
     }
 
-    private static string FormatConstructor(ConstructorInfoModel ctor)
+    private static ConstructorResponse MapConstructor(ConstructorInfoModel ctor)
     {
-        var parameters = string.Join(", ", ctor.Parameters.Select(p => $"{p.ParameterType} {p.Name}"));
-        var signature = $"({parameters})";
-        return AppendDocumentation(signature, ctor.Documentation);
+        return new ConstructorResponse
+        {
+            Documentation = NullIfEmpty(ctor.Documentation),
+            Parameters = ctor.Parameters.Select(MapParameter).ToList()
+        };
     }
 
-    private static string FormatMethod(MethodInfoModel method)
+    private static MethodResponse MapMethod(MethodInfoModel method)
     {
-        var modifiers = new List<string>();
-
-        // Order: static/abstract/virtual/sealed/override
-        if (method.IsStatic)
+        return new MethodResponse
         {
-            modifiers.Add("static");
-        }
-        else if (method.IsAbstract)
-        {
-            modifiers.Add("abstract");
-        }
-        else if (method.IsOverride)
-        {
-            if (method.IsSealed) modifiers.Add("sealed");
-            modifiers.Add("override");
-        }
-        else if (method.IsVirtual)
-        {
-            modifiers.Add("virtual");
-        }
-
-        var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
-        var parameters = string.Join(", ", method.Parameters.Select(FormatParameter));
-        var signature = $"{modifierString}{method.ReturnType} {method.Name}({parameters})";
-        return AppendDocumentation(signature, method.Documentation);
+            Name = method.Name,
+            ReturnType = method.ReturnType,
+            Documentation = NullIfEmpty(method.Documentation),
+            ReturnsDocumentation = NullIfEmpty(method.ReturnsDocumentation),
+            Parameters = method.Parameters.Select(MapParameter).ToList(),
+            IsStatic = method.IsStatic,
+            IsAbstract = method.IsAbstract,
+            IsVirtual = method.IsVirtual,
+            IsOverride = method.IsOverride,
+            IsSealed = method.IsSealed
+        };
     }
 
-    private static string FormatParameter(ParameterInfoModel param)
+    private static PropertyResponse MapProperty(PropertyInfoModel prop)
     {
-        var prefix = !string.IsNullOrEmpty(param.Modifier) ? param.Modifier + " " : "";
-        var nullableType = param.IsOptional && !param.ParameterType.EndsWith("?")
-            ? param.ParameterType + "?"
-            : param.ParameterType;
-
-        // Always add "= null" for optional parameters
-        var suffix = param.IsOptional ? " = null" : "";
-        return $"{prefix}{nullableType} {param.Name}{suffix}";
-    }
-
-    private static string FormatProperty(PropertyInfoModel prop)
-    {
-        var modifiers = new List<string>();
-
-        if (prop.IsStatic) modifiers.Add("static");
-        else
+        return new PropertyResponse
         {
-            if (prop.IsAbstract) modifiers.Add("abstract");
-            else if (prop.IsVirtual) modifiers.Add("virtual");
-            else if (prop.IsOverride)
-            {
-                if (prop.IsSealed) modifiers.Add("sealed");  // sealed comes before override
-                modifiers.Add("override");
-            }
-        }
-
-        if (prop.IsRequired) modifiers.Add("required");
-
-        var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
-        var accessors = "";
-        if (prop is { HasPublicGetter: true, HasPublicSetter: true })
-            accessors = prop.IsInit ? " { get; init; }" : " { get; set; }";
-        else if (prop.HasPublicGetter)
-            accessors = " { get; }";
-        else if (prop.HasPublicSetter)
-            accessors = prop.IsInit ? " { init; }" : " { set; }";
-
-        var signature = $"{modifierString}{prop.PropertyType} {prop.Name}{accessors}";
-        return AppendDocumentation(signature, prop.Documentation);
+            Name = prop.Name,
+            Type = prop.PropertyType,
+            Documentation = NullIfEmpty(prop.Documentation),
+            HasGetter = prop.HasPublicGetter,
+            HasSetter = prop.HasPublicSetter,
+            IsInit = prop.IsInit,
+            IsStatic = prop.IsStatic,
+            IsAbstract = prop.IsAbstract,
+            IsVirtual = prop.IsVirtual,
+            IsOverride = prop.IsOverride,
+            IsSealed = prop.IsSealed,
+            IsRequired = prop.IsRequired
+        };
     }
 
-    private static string FormatField(FieldInfoModel field)
+    private static FieldResponse MapField(FieldInfoModel field)
     {
-        var modifiers = new List<string>();
-
-        // Order: static/const/required/readonly
-        if (field.IsConstant)
+        return new FieldResponse
         {
-            modifiers.Add("const");
-        }
-        else
+            Name = field.Name,
+            Type = field.FieldType,
+            Documentation = NullIfEmpty(field.Documentation),
+            IsStatic = field.IsStatic,
+            IsReadOnly = field.IsReadOnly,
+            IsConstant = field.IsConstant,
+            IsRequired = field.IsRequired
+        };
+    }
+
+    private static EventResponse MapEvent(EventInfoModel evt)
+    {
+        return new EventResponse
         {
-            if (field.IsStatic) modifiers.Add("static");
-            if (field.IsRequired) modifiers.Add("required");
-            if (field.IsReadOnly) modifiers.Add("readonly");
-        }
-
-        var modifierString = modifiers.Any() ? string.Join(" ", modifiers) + " " : "";
-        var signature = $"{modifierString}{field.FieldType} {field.Name}";
-        return AppendDocumentation(signature, field.Documentation);
+            Name = evt.Name,
+            HandlerType = evt.EventHandlerType,
+            Documentation = NullIfEmpty(evt.Documentation),
+            IsStatic = evt.IsStatic
+        };
     }
 
-    private static string FormatEvent(EventInfoModel evt)
+    private static ParameterResponse MapParameter(ParameterInfoModel param)
     {
-        var staticModifier = evt.IsStatic ? "static " : "";
-        var signature = $"{staticModifier}event {evt.EventHandlerType} {evt.Name}";
-        return AppendDocumentation(signature, evt.Documentation);
+        return new ParameterResponse
+        {
+            Name = param.Name,
+            Type = param.ParameterType,
+            Documentation = NullIfEmpty(param.Documentation),
+            IsOptional = param.IsOptional,
+            HasDefaultValue = param.HasDefaultValue,
+            Modifier = string.IsNullOrEmpty(param.Modifier) ? null : param.Modifier
+        };
     }
 
-    /// <summary>
-    /// Appends XML documentation summary to a formatted signature string.
-    /// Uses " — " (em dash) as separator for readability.
-    /// </summary>
-    private static string AppendDocumentation(string signature, string? documentation)
-    {
-        return string.IsNullOrEmpty(documentation)
-            ? signature
-            : $"{signature} — {documentation}";
-    }
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrEmpty(value) ? null : value;
 }

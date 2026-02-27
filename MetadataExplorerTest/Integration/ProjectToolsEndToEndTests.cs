@@ -363,10 +363,9 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify Product has expected properties
         Assert.That(productType!.Properties, Is.Not.Null.And.Not.Empty,
             "Product type should have properties");
-        var propertyNames = string.Join(", ", productType.Properties!);
-        Assert.That(propertyNames, Does.Contain("Id").IgnoreCase, "Product should have Id property");
-        Assert.That(propertyNames, Does.Contain("Name").IgnoreCase, "Product should have Name property");
-        Assert.That(propertyNames, Does.Contain("Price").IgnoreCase, "Product should have Price property");
+        Assert.That(productType!.Properties!.Any(p => p.Name.Contains("Id", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Id property");
+        Assert.That(productType.Properties!.Any(p => p.Name.Contains("Name", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Name property");
+        Assert.That(productType.Properties!.Any(p => p.Name.Contains("Price", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Price property");
     }
 
     [Test]
@@ -432,11 +431,10 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify methods
         Assert.That(productService!.Methods, Is.Not.Null.And.Not.Empty,
             "ProductService should have methods");
-        var methods = string.Join(", ", productService.Methods!);
-        Assert.That(methods, Does.Contain("GetById").IgnoreCase,
-            "ProductService should have GetById method");
-        Assert.That(methods, Does.Contain("GetAll").IgnoreCase,
-            "ProductService should have GetAll method");
+        Assert.That(productService!.Methods!.Any(m => m.Name.Contains("GetById", StringComparison.OrdinalIgnoreCase)),
+            Is.True, "ProductService should have GetById method");
+        Assert.That(productService.Methods!.Any(m => m.Name.Contains("GetAll", StringComparison.OrdinalIgnoreCase)),
+            Is.True, "ProductService should have GetAll method");
     }
 
     [Test]
@@ -469,9 +467,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify events
         Assert.That(productService!.Events, Is.Not.Null.And.Not.Empty,
             "ProductService should have events");
-        var events = string.Join(", ", productService.Events!);
-        Assert.That(events, Does.Contain("ProductCreated").IgnoreCase,
-            "ProductService should have ProductCreated event");
+        Assert.That(productService!.Events!.Any(e => e.Name.Contains("ProductCreated", StringComparison.OrdinalIgnoreCase)),
+            Is.True, "ProductService should have ProductCreated event");
     }
 
     [Test]
