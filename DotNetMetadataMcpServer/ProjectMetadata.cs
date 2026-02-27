@@ -34,6 +34,7 @@ public class TypeInfoModel
 {
     public string FullName { get; set; } = "";  // Considering generics (friendly name)
     public string? Documentation { get; set; }    // XML doc summary for the type
+    public string? BaseType { get; set; }
     public List<string> Implements { get; set; } = [];
     public List<ConstructorInfoModel> Constructors { get; set; } = [];
     public List<MethodInfoModel> Methods { get; set; } = [];

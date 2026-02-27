@@ -25,6 +25,10 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
     private const string TestProjectPath =
         @"C:\Users\Endy\source\repos\McpTestProject\McpTestProject.Core\McpTestProject.Core.csproj";
 
+    private static string LocalServerProjectPath
+        => Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
+            "../../../../DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj"));
+
     /// <summary>
     /// Extracts text content from an AIFunction.InvokeAsync result.
     /// In MCP SDK RC1, different tools may return TextContent or JsonElement.
@@ -48,7 +52,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
             .WithTools<AssemblyTools>()
             .WithTools<NamespaceTools>()
             .WithTools<TypeTools>()
-            .WithTools<TypeSearchTools>();
+            .WithTools<TypeSearchTools>()
+            .WithTools<InheritanceTools>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -67,6 +72,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
         services.AddScoped<TypeSearchToolService>();
+        services.AddScoped<InheritanceToolService>();
         services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
 
@@ -702,6 +708,26 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.TypeMatches, Is.Not.Empty);
         Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("ProductService", StringComparison.OrdinalIgnoreCase)), Is.True);
+    }
+
+    [Test]
+    public async Task InheritanceHierarchy_Should_Return_DerivedTypes_ForBaseType()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "InheritanceHierarchy");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["projectFileAbsolutePath"] = LocalServerProjectPath,
+            ["typeName"] = "DotNetMetadataMcpServer.Models.Base.PagedResponse"
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<InheritanceHierarchyResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.TypeFullName, Is.EqualTo("DotNetMetadataMcpServer.Models.Base.PagedResponse"));
+        Assert.That(response.DerivedTypes.Any(t => t.Contains("TypeToolResponse", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 
     #endregion

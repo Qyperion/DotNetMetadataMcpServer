@@ -42,6 +42,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             .WithTools<NamespaceTools>()
             .WithTools<TypeTools>()
             .WithTools<TypeSearchTools>()
+            .WithTools<InheritanceTools>()
             .WithTools<NuGetTools>();
 
         // Configure settings
@@ -63,6 +64,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
         services.AddScoped<TypeSearchToolService>();
+        services.AddScoped<InheritanceToolService>();
         services.AddScoped<NuGetToolService>();
         services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
@@ -84,6 +86,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         Assert.That(toolNames, Does.Contain("NamespacesExplorer"));
         Assert.That(toolNames, Does.Contain("NamespaceTypes"));
         Assert.That(toolNames, Does.Contain("TypeSearch"));
+        Assert.That(toolNames, Does.Contain("InheritanceHierarchy"));
         Assert.That(toolNames, Does.Contain("NuGetPackageSearch"));
         Assert.That(toolNames, Does.Contain("NuGetPackageVersions"));
     }

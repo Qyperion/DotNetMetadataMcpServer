@@ -105,6 +105,7 @@ public class ReflectionTypesCollector
         {
             FullName = type.FullName ?? type.Name,
             Documentation = xmlDocs?.GetTypeSummary(type),
+            BaseType = type.BaseType?.FullName,
             // Collect interfaces
             Implements = type.GetInterfaces()
                 .Select(i => i.Name)

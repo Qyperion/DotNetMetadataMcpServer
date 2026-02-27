@@ -18,6 +18,9 @@ namespace DotNetMetadataMcpServer.Models
         public string? Documentation { get; set; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? BaseType { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<string>? Implements { get; set; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -188,5 +191,18 @@ namespace DotNetMetadataMcpServer.Models
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Documentation { get; init; }
+    }
+
+    public class InheritanceHierarchyResponse
+    {
+        [Required]
+        public required string TypeFullName { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? DirectBaseType { get; init; }
+
+        public List<string> BaseTypeChain { get; init; } = [];
+
+        public List<string> DerivedTypes { get; init; } = [];
     }
 }

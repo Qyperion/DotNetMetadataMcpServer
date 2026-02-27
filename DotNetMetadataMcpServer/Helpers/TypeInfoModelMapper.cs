@@ -9,7 +9,8 @@ public static class TypeInfoModelMapper
         var result = new SimpleTypeInfo
         {
             FullName = model.FullName,
-            Documentation = model.Documentation
+            Documentation = model.Documentation,
+            BaseType = NullIfEmpty(model.BaseType)
         };
 
         if (model.Implements.Any())
