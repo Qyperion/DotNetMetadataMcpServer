@@ -20,7 +20,8 @@ namespace DotNetMetadataMcpServer.Services
         {
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Collect all types from project and dependencies.
-            var allTypes = metadata.ProjectTypes.Concat(metadata.Dependencies.SelectMany(d => d.Types));
+            var dependencyTypes = FlattenDependencies(metadata.Dependencies).SelectMany(d => d.Types);
+            var allTypes = metadata.ProjectTypes.Concat(dependencyTypes);
 
             // If allowed namespaces are provided, only retain types whose namespace (the part before the last '.') is allowed.
             if (allowedNamespaces.Any())
@@ -48,6 +49,19 @@ namespace DotNetMetadataMcpServer.Services
                 CurrentPage = pageNumber,
                 AvailablePages = availablePages
             };
+        }
+
+        private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)
+        {
+            foreach (var dependency in dependencies)
+            {
+                yield return dependency;
+
+                foreach (var child in FlattenDependencies(dependency.Children))
+                {
+                    yield return child;
+                }
+            }
         }
     }
 }

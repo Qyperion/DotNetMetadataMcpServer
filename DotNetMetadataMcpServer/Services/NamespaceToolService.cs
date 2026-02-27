@@ -19,6 +19,7 @@ namespace DotNetMetadataMcpServer.Services
             List<string> allowedAssemblyNames, List<string> filters, int pageNumber, int pageSize)
         {
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
+            var flattenedDependencies = FlattenDependencies(metadata.Dependencies).ToList();
 
             var allowedAssemblyNamesWithoutExtension = allowedAssemblyNames
                 .Select(NormalizeAssemblyName)
@@ -37,7 +38,7 @@ namespace DotNetMetadataMcpServer.Services
                 }
 
                 // Include namespaces from dependencies whose Name is in allowedAssemblyNames.
-                foreach (var dep in metadata.Dependencies)
+                foreach (var dep in flattenedDependencies)
                 {
                     var depNameWithoutExtension = NormalizeAssemblyName(dep.Name);
                     if (allowedAssemblyNamesWithoutExtension.Contains(depNameWithoutExtension.ToLowerInvariant()))
@@ -50,7 +51,7 @@ namespace DotNetMetadataMcpServer.Services
             {
                 allowedNamespaces.AddRange(ExtractNamespaces(metadata.ProjectTypes));
 
-                foreach (var dep in metadata.Dependencies)
+                foreach (var dep in flattenedDependencies)
                 {
                     allowedNamespaces.AddRange(ExtractNamespaces(dep.Types));
                 }
@@ -97,6 +98,19 @@ namespace DotNetMetadataMcpServer.Services
             }
 
             return name;
+        }
+
+        private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)
+        {
+            foreach (var dependency in dependencies)
+            {
+                yield return dependency;
+
+                foreach (var child in FlattenDependencies(dependency.Children))
+                {
+                    yield return child;
+                }
+            }
         }
     }
 }

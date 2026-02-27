@@ -1,4 +1,5 @@
 using DependencyGraph.Core.Graph;
+using DependencyGraph.Core.Graph.Factory;
 using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.ProjectModel;
@@ -41,6 +42,8 @@ public class DependenciesScanner : IDependenciesScanner
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
+        _visitedNodes.Clear();
+
         if (!MSBuildLocator.IsRegistered)
         {
             MSBuildLocator.RegisterDefaults();
@@ -83,24 +86,23 @@ public class DependenciesScanner : IDependenciesScanner
             return pm;
         }
 
-        foreach (var lib in theFirstTarget.Libraries)
-        {
-            var d = BuildDependencyInfo(lib, baseDir);
-            depList.AddRange(d);
-        }
-
-
-        /*var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
+        var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
         {
             Excludes = ["Microsoft.*", "System.*"]
         });
-        
+
         var graph = depGraphFactory.FromLockFile(lockFile);
 
-        var rootNode = graph.RootNodes.FirstOrDefault() as RootProjectDependencyGraphNode;
+        var rootNode = graph.RootNodes.OfType<RootProjectDependencyGraphNode>().FirstOrDefault();
         if (rootNode == null)
         {
             _logger.LogWarning("No RootProjectDependencyGraphNode found.");
+            foreach (var lib in theFirstTarget.Libraries)
+            {
+                var d = BuildDependencyInfo(lib, baseDir);
+                depList.Add(d);
+            }
+
             return pm;
         }
 
@@ -108,39 +110,47 @@ public class DependenciesScanner : IDependenciesScanner
         if (tfmNode == null)
         {
             _logger.LogWarning("No TargetFrameworkDependencyGraphNode found under root.");
+            foreach (var lib in theFirstTarget.Libraries)
+            {
+                var d = BuildDependencyInfo(lib, baseDir);
+                depList.Add(d);
+            }
+
             return pm;
         }
-        
+
         foreach (var child in tfmNode.Dependencies)
         {
             var d = BuildDependencyInfo(child, baseDir);
-            if (d != null) depList.Add(d);
-        }*/
+            if (d != null)
+            {
+                depList.Add(d);
+            }
+        }
 
 
         return pm;
     }
 
-    private List<DependencyInfo> BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary, string baseDir)
+    private DependencyInfo BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary, string baseDir)
     {
-        var result = new List<DependencyInfo>();
+        var info = new DependencyInfo
+        {
+            Name = lockFileTargetLibrary.Name ?? "Unknown",
+            Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
+            NodeType = "package"
+        };
+
         foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
         {
             var rel = lockFileItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
             var fileName = Path.GetFileName(rel);
             var full = Path.Combine(baseDir, fileName);
             var types = _reflection.LoadAssemblyTypes(full);
-            var info = new DependencyInfo
-            {
-                Name = lockFileTargetLibrary.Name ?? "Unknown",
-                Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
-                NodeType = "package",
-                Types = types
-            };
-            result.Add(info);
+            info.Types.AddRange(types);
         }
 
-        return result;
+        return info;
     }
 
     private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir)

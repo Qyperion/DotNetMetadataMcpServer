@@ -43,6 +43,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             .WithTools<TypeTools>()
             .WithTools<TypeSearchTools>()
             .WithTools<InheritanceTools>()
+            .WithTools<DependencyGraphTools>()
             .WithTools<NuGetTools>();
 
         // Configure settings
@@ -65,6 +66,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         services.AddScoped<TypeToolService>();
         services.AddScoped<TypeSearchToolService>();
         services.AddScoped<InheritanceToolService>();
+        services.AddScoped<DependencyGraphToolService>();
         services.AddScoped<NuGetToolService>();
         services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
@@ -87,6 +89,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         Assert.That(toolNames, Does.Contain("NamespaceTypes"));
         Assert.That(toolNames, Does.Contain("TypeSearch"));
         Assert.That(toolNames, Does.Contain("InheritanceHierarchy"));
+        Assert.That(toolNames, Does.Contain("DependencyGraphExplorer"));
         Assert.That(toolNames, Does.Contain("NuGetPackageSearch"));
         Assert.That(toolNames, Does.Contain("NuGetPackageVersions"));
     }

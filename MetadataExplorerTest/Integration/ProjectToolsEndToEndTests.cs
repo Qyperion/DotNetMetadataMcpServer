@@ -53,7 +53,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
             .WithTools<NamespaceTools>()
             .WithTools<TypeTools>()
             .WithTools<TypeSearchTools>()
-            .WithTools<InheritanceTools>();
+            .WithTools<InheritanceTools>()
+            .WithTools<DependencyGraphTools>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -73,6 +74,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         services.AddScoped<TypeToolService>();
         services.AddScoped<TypeSearchToolService>();
         services.AddScoped<InheritanceToolService>();
+        services.AddScoped<DependencyGraphToolService>();
         services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
 
@@ -728,6 +730,25 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.TypeFullName, Is.EqualTo("DotNetMetadataMcpServer.Models.Base.PagedResponse"));
         Assert.That(response.DerivedTypes.Any(t => t.Contains("TypeToolResponse", StringComparison.OrdinalIgnoreCase)), Is.True);
+    }
+
+    [Test]
+    public async Task DependencyGraphExplorer_Should_Return_Graph_WithNodes()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "DependencyGraphExplorer");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["projectFileAbsolutePath"] = TestProjectPath
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<DependencyGraphToolResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.Dependencies, Is.Not.Empty);
+        Assert.That(response.TotalNodes, Is.GreaterThan(0));
     }
 
     #endregion

@@ -23,6 +23,7 @@ public class TypeSearchToolService
         int pageSize)
     {
         var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
+        var flattenedDependencies = FlattenDependencies(metadata.Dependencies).ToList();
         var normalizedAllowedAssemblies = allowedAssemblyNames
             .Select(NormalizeAssemblyName)
             .Select(s => s.ToLowerInvariant())
@@ -41,7 +42,7 @@ public class TypeSearchToolService
             }));
         }
 
-        foreach (var dep in metadata.Dependencies)
+        foreach (var dep in flattenedDependencies)
         {
             if (dep.Types.Count == 0)
             {
@@ -107,5 +108,18 @@ public class TypeSearchToolService
         }
 
         return name;
+    }
+
+    private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)
+    {
+        foreach (var dependency in dependencies)
+        {
+            yield return dependency;
+
+            foreach (var child in FlattenDependencies(dependency.Children))
+            {
+                yield return child;
+            }
+        }
     }
 }

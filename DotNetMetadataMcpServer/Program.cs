@@ -68,6 +68,7 @@ public class Program
             .WithTools<TypeTools>()
             .WithTools<TypeSearchTools>()
             .WithTools<InheritanceTools>()
+            .WithTools<DependencyGraphTools>()
             .WithTools<NuGetTools>();
             
             // Register configuration
@@ -84,6 +85,7 @@ public class Program
             builder.Services.AddScoped<TypeToolService>();
             builder.Services.AddScoped<TypeSearchToolService>();
             builder.Services.AddScoped<InheritanceToolService>();
+            builder.Services.AddScoped<DependencyGraphToolService>();
             builder.Services.AddScoped<NuGetToolService>();
             
             var host = builder.Build();

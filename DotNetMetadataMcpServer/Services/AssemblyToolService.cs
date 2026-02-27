@@ -19,7 +19,13 @@ namespace DotNetMetadataMcpServer.Services
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Get main assembly name and dependency names from full data
             var assemblies = new List<string> { Path.GetFileNameWithoutExtension(metadata.AssemblyPath) };
-            assemblies.AddRange(metadata.Dependencies.Select(d => d.Name));
+            assemblies.AddRange(FlattenDependencies(metadata.Dependencies)
+                .Where(d => string.IsNullOrEmpty(d.NodeType) || d.NodeType == "package")
+                .Select(d => d.Name));
+
+            assemblies = assemblies
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             if (filters.Any())
             {
@@ -34,6 +40,19 @@ namespace DotNetMetadataMcpServer.Services
                 CurrentPage = pageNumber,
                 AvailablePages = availablePages
             };
+        }
+
+        private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)
+        {
+            foreach (var dependency in dependencies)
+            {
+                yield return dependency;
+
+                foreach (var child in FlattenDependencies(dependency.Children))
+                {
+                    yield return child;
+                }
+            }
         }
     }
 }

@@ -28,6 +28,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
   - Events with handler types
 - **NuGet Package Search**: Search for NuGet packages on nuget.org with filtering and pagination
 - **NuGet Package Version Information**: Retrieve version history and dependency information for specific NuGet packages
+- **Dependency Graph Exploration**: Build dependency graph from `project.assets.json` including transitive dependencies
 - **Filtering**: Apply wildcard filters to narrow down results
 - **Pagination**: Handle large result sets with built-in pagination
 
@@ -36,7 +37,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [x] Add NuGet integration to provide information about actual package versions
 - [x] Migrate to official Model Context Protocol C# SDK ([modelcontextprotocol/csharp-sdk](https://github.com/modelcontextprotocol/csharp-sdk))
 - [x] Support for multiple NuGet package sources (custom/private feeds)
-- [ ] Add dependency graph building capabilities
+- [x] Add dependency graph building capabilities
 - [ ] Improve multi-project scenario
 
 ## Prerequisites
@@ -219,13 +220,16 @@ The first existing output wins. If no output is found, a reasonable default path
 
 ## Usage
 
-The server provides five main tools that can be used by AI agents:
+The server provides MCP tools that can be used by AI agents:
 
 1. **ReferencedAssembliesExplorer**: Retrieves referenced assemblies from a .NET project
 2. **NamespacesExplorer**: Retrieves namespaces from specified assemblies
 3. **NamespaceTypes**: Retrieves types from specified namespaces
 4. **NuGetPackageSearch**: Searches for NuGet packages on nuget.org with filtering and pagination
 5. **NuGetPackageVersions**: Retrieves version history and dependency information for specific NuGet packages
+6. **TypeSearch**: Searches for types across project and dependency assemblies
+7. **InheritanceHierarchy**: Retrieves base type chain and derived types for a specific type
+8. **DependencyGraphExplorer**: Returns dependency graph from lock file including transitive dependencies
 
 This tool has been tested with the [Roo Code Visual Studio extension](https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline), an AI coding assistant that supports the Model Context Protocol. You can find more information about Roo Code on [GitHub](https://github.com/RooVetGit/Roo-Code?tab=readme-ov-file).
 

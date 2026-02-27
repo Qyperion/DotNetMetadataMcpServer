@@ -21,7 +21,8 @@ public class InheritanceToolService
         }
 
         var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
-        var allTypes = metadata.ProjectTypes.Concat(metadata.Dependencies.SelectMany(d => d.Types)).ToList();
+        var dependencyTypes = FlattenDependencies(metadata.Dependencies).SelectMany(d => d.Types);
+        var allTypes = metadata.ProjectTypes.Concat(dependencyTypes).ToList();
 
         var typeLookup = allTypes
             .Where(t => !string.IsNullOrWhiteSpace(t.FullName))
@@ -113,5 +114,18 @@ public class InheritanceToolService
     {
         var lastDot = fullName.LastIndexOf('.');
         return lastDot >= 0 ? fullName[(lastDot + 1)..] : fullName;
+    }
+
+    private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)
+    {
+        foreach (var dependency in dependencies)
+        {
+            yield return dependency;
+
+            foreach (var child in FlattenDependencies(dependency.Children))
+            {
+                yield return child;
+            }
+        }
     }
 }
