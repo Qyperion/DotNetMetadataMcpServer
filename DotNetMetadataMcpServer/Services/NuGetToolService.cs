@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using NuGet.Common;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
 
 namespace DotNetMetadataMcpServer.Services
 {
@@ -63,6 +64,27 @@ namespace DotNetMetadataMcpServer.Services
             string searchQuery,
             List<string> filters,
             bool includePrerelease,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            return await SearchPackagesAsync(
+                searchQuery,
+                filters,
+                includePrerelease,
+                "relevance",
+                "asc",
+                pageNumber,
+                pageSize,
+                cancellationToken);
+        }
+
+        public async Task<NuGetPackageSearchResponse> SearchPackagesAsync(
+            string searchQuery,
+            List<string> filters,
+            bool includePrerelease,
+            string sortBy,
+            string sortDirection,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -135,6 +157,8 @@ namespace DotNetMetadataMcpServer.Services
                         .ToList();
                 }
 
+                packageList = OrderSearchResults(packageList, sortBy, sortDirection);
+
                 // Apply pagination
                 var (paged, availablePages) = PaginationHelper.FilterAndPaginate(
                     packageList,
@@ -146,7 +170,9 @@ namespace DotNetMetadataMcpServer.Services
                 {
                     Packages = paged,
                     CurrentPage = pageNumber,
-                    AvailablePages = availablePages
+                    AvailablePages = availablePages,
+                    SortBy = NormalizeSearchSortBy(sortBy),
+                    SortDirection = NormalizeSortDirection(sortDirection)
                 };
             }
             catch (Exception ex)
@@ -160,6 +186,27 @@ namespace DotNetMetadataMcpServer.Services
             string packageId,
             List<string> filters,
             bool includePrerelease,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            return await GetPackageVersionsAsync(
+                packageId,
+                filters,
+                includePrerelease,
+                "relevance",
+                "asc",
+                pageNumber,
+                pageSize,
+                cancellationToken);
+        }
+
+        public async Task<NuGetPackageVersionsResponse> GetPackageVersionsAsync(
+            string packageId,
+            List<string> filters,
+            bool includePrerelease,
+            string sortBy,
+            string sortDirection,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -257,6 +304,8 @@ namespace DotNetMetadataMcpServer.Services
                         .ToList();
                 }
 
+                versions = OrderVersionResults(versions, sortBy, sortDirection);
+
                 // Apply pagination
                 var (paged, availablePages) = PaginationHelper.FilterAndPaginate(
                     versions,
@@ -269,7 +318,9 @@ namespace DotNetMetadataMcpServer.Services
                     PackageId = packageId,
                     Versions = paged,
                     CurrentPage = pageNumber,
-                    AvailablePages = availablePages
+                    AvailablePages = availablePages,
+                    SortBy = NormalizeVersionSortBy(sortBy),
+                    SortDirection = NormalizeSortDirection(sortDirection)
                 };
             }
             catch (Exception ex)
@@ -277,6 +328,103 @@ namespace DotNetMetadataMcpServer.Services
                 _logger.LogError(ex, "Error getting versions for NuGet package: {PackageId}", packageId);
                 throw;
             }
+        }
+
+        private static List<NuGetPackageInfo> OrderSearchResults(List<NuGetPackageInfo> packages, string sortBy, string sortDirection)
+        {
+            var normalizedSortBy = NormalizeSearchSortBy(sortBy);
+            var isDescending = NormalizeSortDirection(sortDirection) == "desc";
+
+            IOrderedEnumerable<NuGetPackageInfo> ordered = normalizedSortBy switch
+            {
+                "relevance" => packages.OrderBy(_ => 0),
+                "version" => isDescending
+                    ? packages.OrderByDescending(p => ParseVersion(p.Version))
+                    : packages.OrderBy(p => ParseVersion(p.Version)),
+                "downloads" => isDescending
+                    ? packages.OrderByDescending(p => p.DownloadCount)
+                    : packages.OrderBy(p => p.DownloadCount),
+                "published" => isDescending
+                    ? packages.OrderByDescending(p => p.Published ?? DateTimeOffset.MinValue)
+                    : packages.OrderBy(p => p.Published ?? DateTimeOffset.MinValue),
+                _ => isDescending
+                    ? packages.OrderByDescending(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                    : packages.OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+            };
+
+            var stableOrdered = ordered
+                .ThenBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => ParseVersion(p.Version));
+
+            return normalizedSortBy == "relevance"
+                ? packages
+                : stableOrdered.ToList();
+        }
+
+        private static List<NuGetPackageInfo> OrderVersionResults(List<NuGetPackageInfo> versions, string sortBy, string sortDirection)
+        {
+            var normalizedSortBy = NormalizeVersionSortBy(sortBy);
+            var isDescending = NormalizeSortDirection(sortDirection) == "desc";
+
+            IOrderedEnumerable<NuGetPackageInfo> ordered = normalizedSortBy switch
+            {
+                "relevance" => versions.OrderBy(_ => 0),
+                "downloads" => isDescending
+                    ? versions.OrderByDescending(v => v.DownloadCount)
+                    : versions.OrderBy(v => v.DownloadCount),
+                "published" => isDescending
+                    ? versions.OrderByDescending(v => v.Published ?? DateTimeOffset.MinValue)
+                    : versions.OrderBy(v => v.Published ?? DateTimeOffset.MinValue),
+                _ => isDescending
+                    ? versions.OrderByDescending(v => ParseVersion(v.Version))
+                    : versions.OrderBy(v => ParseVersion(v.Version))
+            };
+
+            var stableOrdered = ordered
+                .ThenBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(v => ParseVersion(v.Version));
+
+            return normalizedSortBy == "relevance"
+                ? versions
+                : stableOrdered.ToList();
+        }
+
+        private static NuGetVersion ParseVersion(string version)
+        {
+            return NuGetVersion.TryParse(version, out var parsed)
+                ? parsed
+                : new NuGetVersion(0, 0, 0);
+        }
+
+        private static string NormalizeSortDirection(string sortDirection)
+        {
+            return string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+                ? "desc"
+                : "asc";
+        }
+
+        private static string NormalizeSearchSortBy(string sortBy)
+        {
+            return sortBy?.ToLowerInvariant() switch
+            {
+                "relevance" => "relevance",
+                "version" => "version",
+                "downloads" => "downloads",
+                "published" => "published",
+                _ => "relevance"
+            };
+        }
+
+        private static string NormalizeVersionSortBy(string sortBy)
+        {
+            return sortBy?.ToLowerInvariant() switch
+            {
+                "relevance" => "relevance",
+                "downloads" => "downloads",
+                "published" => "published",
+                "version" => "version",
+                _ => "relevance"
+            };
         }
     }
 }

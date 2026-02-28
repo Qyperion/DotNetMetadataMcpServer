@@ -30,7 +30,7 @@ public class TypeSearchToolServiceTests
     [Test]
     public void SearchTypes_WithTypeNameQuery_ReturnsMatchingTypes()
     {
-        var response = _service.SearchTypes(_testProjectPath, "TypeToolService", [], [], 1, 20);
+        var response = _service.SearchTypes(_testProjectPath, "TypeToolService", [], [], "fullName", "asc", 1, 20);
 
         Assert.That(response.TypeMatches, Is.Not.Empty);
         Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("TypeToolService", StringComparison.OrdinalIgnoreCase)), Is.True);
@@ -44,6 +44,8 @@ public class TypeSearchToolServiceTests
             "Response",
             ["DotNetMetadataMcpServer"],
             [],
+            "fullName",
+            "asc",
             1,
             50);
 

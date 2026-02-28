@@ -19,6 +19,8 @@ public class TypeSearchToolService
         string searchQuery,
         List<string> allowedAssemblyNames,
         List<string> filters,
+        string sortBy,
+        string sortDirection,
         int pageNumber,
         int pageSize)
     {
@@ -78,10 +80,7 @@ public class TypeSearchToolService
             matchingTypes = matchingTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
         }
 
-        var orderedTypes = matchingTypes
-            .OrderBy(t => t.FullName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var orderedTypes = Order(matchingTypes, sortBy, sortDirection).ToList();
 
         var (paged, availablePages) = PaginationHelper.FilterAndPaginate(orderedTypes, _ => true, pageNumber, pageSize);
 
@@ -89,8 +88,30 @@ public class TypeSearchToolService
         {
             TypeMatches = paged,
             CurrentPage = pageNumber,
-            AvailablePages = availablePages
+            AvailablePages = availablePages,
+            SortBy = NormalizeSortBy(sortBy),
+            SortDirection = NormalizeSortDirection(sortDirection)
         };
+    }
+
+    private static IEnumerable<TypeSearchMatch> Order(IEnumerable<TypeSearchMatch> items, string sortBy, string sortDirection)
+    {
+        var normalizedSortBy = NormalizeSortBy(sortBy);
+        var isDescending = string.Equals(NormalizeSortDirection(sortDirection), "desc", StringComparison.OrdinalIgnoreCase);
+
+        IOrderedEnumerable<TypeSearchMatch> ordered = normalizedSortBy switch
+        {
+            "assemblyName" => isDescending
+                ? items.OrderByDescending(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase)
+                : items.OrderBy(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase),
+            _ => isDescending
+                ? items.OrderByDescending(t => t.FullName, StringComparer.OrdinalIgnoreCase)
+                : items.OrderBy(t => t.FullName, StringComparer.OrdinalIgnoreCase)
+        };
+
+        return normalizedSortBy == "assemblyName"
+            ? ordered.ThenBy(t => t.FullName, StringComparer.OrdinalIgnoreCase)
+            : ordered.ThenBy(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase);
     }
 
     private static string GetTypeShortName(string fullName)
@@ -108,6 +129,20 @@ public class TypeSearchToolService
         }
 
         return name;
+    }
+
+    private static string NormalizeSortBy(string sortBy)
+    {
+        return string.Equals(sortBy, "assemblyName", StringComparison.OrdinalIgnoreCase)
+            ? "assemblyName"
+            : "fullName";
+    }
+
+    private static string NormalizeSortDirection(string sortDirection)
+    {
+        return string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+            ? "desc"
+            : "asc";
     }
 
     private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)

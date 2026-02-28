@@ -78,6 +78,8 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response!.Packages, Is.Not.Empty);
         Assert.That(response.CurrentPage, Is.EqualTo(1));
         Assert.That(response.AvailablePages, Is.Not.Empty);
+        Assert.That(response.SortBy, Is.EqualTo("relevance"));
+        Assert.That(response.SortDirection, Is.EqualTo("asc"));
 
         // Verify the first matching package has all expected fields populated
         var newtonsoftPkg = response.Packages.First(p =>
@@ -281,6 +283,8 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response.Versions, Is.Not.Empty);
         Assert.That(response.CurrentPage, Is.EqualTo(1));
         Assert.That(response.AvailablePages, Is.Not.Empty);
+        Assert.That(response.SortBy, Is.EqualTo("relevance"));
+        Assert.That(response.SortDirection, Is.EqualTo("asc"));
 
         // Verify version entries have expected fields
         var version = response.Versions.First();
@@ -455,6 +459,29 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         var page2Versions = page2Response.Versions.Select(v => v.Version).ToHashSet();
         Assert.That(page1Versions.Overlaps(page2Versions), Is.False,
             "Page 1 and Page 2 should have different versions");
+    }
+
+    [Test]
+    public async Task NuGetPackageSearch_WithSortByDownloads_Should_Return_SortMetadata()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "NuGetPackageSearch");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["searchQuery"] = "Json",
+            ["sortBy"] = "downloads",
+            ["sortDirection"] = "desc",
+            ["pageNumber"] = 1
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.Packages, Is.Not.Empty);
+        Assert.That(response.SortBy, Is.EqualTo("downloads"));
+        Assert.That(response.SortDirection, Is.EqualTo("desc"));
     }
 
     #endregion
