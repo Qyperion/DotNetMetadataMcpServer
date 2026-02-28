@@ -184,7 +184,7 @@ public class DependenciesScanner : IDependenciesScanner
                     {
                         Name = tfmNode.ProjectName,
                         Version = tfmNode.TargetFrameworkIdentifier,
-                        NodeType = "target framework dependency"
+                        NodeType = "target_framework"
                     };
 
                     foreach (var child in tfmNode.Dependencies)

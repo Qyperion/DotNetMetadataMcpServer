@@ -30,9 +30,10 @@ public class DependencyGraphToolServiceTests
     [Test]
     public void GetDependencyGraph_ReturnsNonEmptyGraph()
     {
-        var response = _service.GetDependencyGraph(_testProjectPath);
+        var response = _service.GetDependencyGraph(_testProjectPath, [], [], 0, "tree");
 
         Assert.That(response.Dependencies, Is.Not.Empty);
         Assert.That(response.TotalNodes, Is.GreaterThan(0));
+        Assert.That(response.ViewMode, Is.EqualTo("tree"));
     }
 }
