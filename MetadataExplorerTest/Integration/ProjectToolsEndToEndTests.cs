@@ -1,6 +1,7 @@
 using DotNetMetadataMcpServer;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 using DotNetMetadataMcpServer.Services;
 using DotNetMetadataMcpServer.Tools;
 using Microsoft.Extensions.AI;
@@ -184,20 +185,13 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
             ["pageNumber"] = 1
         };
 
-        // Act & Assert - should throw or return error content
-        try
-        {
-            var result = await tool.InvokeAsync(arguments);
-            var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
-            // If it returns, the content should indicate an error
-            Assert.That(text, Does.Contain("error").IgnoreCase.Or.Contains("exception").IgnoreCase,
-                "Expected error message for invalid project path");
-        }
-        catch (Exception)
-        {
-            // Throwing is also acceptable behavior for invalid input
-            Assert.Pass("Tool threw exception as expected for invalid path");
-        }
+        var result = await tool.InvokeAsync(arguments);
+        var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
+        var error = JsonSerializer.Deserialize<ToolErrorResponse>(text);
+        Assert.That(error, Is.Not.Null);
+        Assert.That(error!.IsError, Is.True);
+        Assert.That(error.ErrorCode, Is.Not.Null.And.Not.Empty);
+        Assert.That(error.ToolName, Is.EqualTo("ReferencedAssembliesExplorer"));
     }
 
     #endregion
@@ -710,6 +704,32 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.TypeMatches, Is.Not.Empty);
         Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("ProductService", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(response.SortBy, Is.EqualTo("fullName"));
+        Assert.That(response.SortDirection, Is.EqualTo("asc"));
+    }
+
+    [Test]
+    public async Task TypeSearch_Should_Sort_By_AssemblyName_Desc()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "TypeSearch");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["projectFileAbsolutePath"] = TestProjectPath,
+            ["searchQuery"] = "Service",
+            ["sortBy"] = "assemblyName",
+            ["sortDirection"] = "desc",
+            ["pageNumber"] = 1
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<TypeSearchToolResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.SortBy, Is.EqualTo("assemblyName"));
+        Assert.That(response.SortDirection, Is.EqualTo("desc"));
+        Assert.That(response.TypeMatches, Is.Not.Empty);
     }
 
     [Test]
@@ -749,6 +769,30 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.Dependencies, Is.Not.Empty);
         Assert.That(response.TotalNodes, Is.GreaterThan(0));
+        Assert.That(response.ViewMode, Is.EqualTo("tree"));
+    }
+
+    [Test]
+    public async Task DependencyGraphExplorer_FlatMode_WithDepthAndFilter_Should_Work()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "DependencyGraphExplorer");
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["projectFileAbsolutePath"] = TestProjectPath,
+            ["viewMode"] = "flat",
+            ["maxDepth"] = 2,
+            ["includeFiltersWithWildCardSupport"] = new[] { "Newtonsoft*", "McpTestProject*" }
+        });
+
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<DependencyGraphToolResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.ViewMode, Is.EqualTo("flat"));
+        Assert.That(response.Dependencies, Is.Not.Empty);
+        Assert.That(response.Dependencies.All(d => d.Depth <= 2), Is.True);
     }
 
     #endregion

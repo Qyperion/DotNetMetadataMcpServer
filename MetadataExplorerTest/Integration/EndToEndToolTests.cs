@@ -1,6 +1,7 @@
 using DotNetMetadataMcpServer;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 using DotNetMetadataMcpServer.Services;
 using DotNetMetadataMcpServer.Tools;
 using Microsoft.Extensions.AI;
@@ -229,24 +230,14 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             ["pageNumber"] = 1
         };
 
-        // The tool should either throw or return a result with isError=true
-        // Let's check what actually happens
-        try
-        {
-            var result = await assemblyTool.InvokeAsync(arguments);
+        var result = await assemblyTool.InvokeAsync(arguments);
 
-            var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
-            Assert.That(text, Is.Not.Null.And.Not.Empty);
-
-            // Check if result contains error information
-            Assert.That(text, Does.Contain("error").IgnoreCase.Or.Contains("exception").IgnoreCase,
-                "Expected error message in content for invalid project path");
-        }
-        catch (Exception ex)
-        {
-            // If it throws, that's also acceptable behavior
-            Assert.Pass($"Tool threw exception as expected: {ex.GetType().Name}");
-        }
+        var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
+        var error = JsonSerializer.Deserialize<ToolErrorResponse>(text);
+        Assert.That(error, Is.Not.Null);
+        Assert.That(error!.IsError, Is.True);
+        Assert.That(error.ErrorCode, Is.Not.Null.And.Not.Empty);
+        Assert.That(error.ToolName, Is.EqualTo("ReferencedAssembliesExplorer"));
     }
 
     [Test]

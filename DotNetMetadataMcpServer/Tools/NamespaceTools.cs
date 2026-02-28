@@ -1,17 +1,15 @@
 using DotNetMetadataMcpServer.Configuration;
+using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
-using System.Text.Json;
 
 namespace DotNetMetadataMcpServer.Tools;
 
 [McpServerToolType]
 public sealed class NamespaceTools
 {
-    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
-
     [McpServerTool(Name = "NamespacesExplorer")]
     [Description("Retrieves namespaces from specified assemblies supporting filters and pagination (doesn't extract data from referenced projects. Notice that the project must be built before scanning.")]
     public static string GetNamespaces(
@@ -42,16 +40,12 @@ public sealed class NamespaceTools
 
             logger.LogDebug("Namespaces retrieved successfully: {@NamespacesScanResult}", result);
 
-            var json = toolsConfiguration.Value.IndentResponse
-                ? JsonSerializer.Serialize(result, IndentedOptions)
-                : JsonSerializer.Serialize(result);
-
-            return json;
+            return ToolResultHelper.Serialize(result, toolsConfiguration.Value.IndentResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error retrieving namespaces");
-            throw;
+            return ToolResultHelper.SerializeError(ex, toolsConfiguration.Value.IndentResponse, "NamespacesExplorer");
         }
     }
 }

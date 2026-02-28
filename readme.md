@@ -29,6 +29,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - **NuGet Package Search**: Search for NuGet packages on nuget.org with filtering and pagination
 - **NuGet Package Version Information**: Retrieve version history and dependency information for specific NuGet packages
 - **Dependency Graph Exploration**: Build dependency graph from `project.assets.json` including transitive dependencies
+- **Type Search**: Search types across project and dependency assemblies
+- **Inheritance Hierarchy**: Inspect base type chain and discover derived types
+- **Unified Error Payloads**: All tools return consistent JSON error responses (`isError`, `errorCode`, `message`, `details`, `toolName`)
+- **Server-side Sorting**: TypeSearch and NuGet tools support `sortBy` and `sortDirection`
 - **Filtering**: Apply wildcard filters to narrow down results
 - **Pagination**: Handle large result sets with built-in pagination
 
@@ -230,6 +234,30 @@ The server provides MCP tools that can be used by AI agents:
 6. **TypeSearch**: Searches for types across project and dependency assemblies
 7. **InheritanceHierarchy**: Retrieves base type chain and derived types for a specific type
 8. **DependencyGraphExplorer**: Returns dependency graph from lock file including transitive dependencies
+
+### Common response patterns
+
+- Most list tools return paged responses with `currentPage`, `availablePages` and optional `sortBy` / `sortDirection`
+- On failures, tools return a unified error payload:
+
+```json
+{
+  "isError": true,
+  "errorCode": "invalid_argument",
+  "message": "Tool execution failed.",
+  "details": "The provided project path does not exist.",
+  "toolName": "ReferencedAssembliesExplorer"
+}
+```
+
+### New tool parameters
+
+- **TypeSearch**: `sortBy` (`fullName` | `assemblyName`), `sortDirection` (`asc` | `desc`)
+- **NuGetPackageSearch / NuGetPackageVersions**: `sortBy` (`relevance` | `id` | `version` | `downloads` | `published` depending on tool), `sortDirection` (`asc` | `desc`)
+- **DependencyGraphExplorer**:
+  - `includeFiltersWithWildCardSupport` / `excludeFiltersWithWildCardSupport`
+  - `maxDepth` (`0` means unlimited)
+  - `viewMode` (`tree` | `flat`)
 
 This tool has been tested with the [Roo Code Visual Studio extension](https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline), an AI coding assistant that supports the Model Context Protocol. You can find more information about Roo Code on [GitHub](https://github.com/RooVetGit/Roo-Code?tab=readme-ov-file).
 

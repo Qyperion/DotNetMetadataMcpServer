@@ -1,17 +1,15 @@
 using DotNetMetadataMcpServer.Configuration;
+using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
-using System.Text.Json;
 
 namespace DotNetMetadataMcpServer.Tools;
 
 [McpServerToolType]
 public sealed class TypeTools
 {
-    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
-
     [McpServerTool(Name = "NamespaceTypes")]
     [Description("Retrieves types from specified namespaces supporting filters and pagination.")]
     public static string GetTypes(
@@ -42,16 +40,12 @@ public sealed class TypeTools
 
             logger.LogDebug("Types retrieved successfully: {@TypesScanResult}", result);
 
-            var json = toolsConfiguration.Value.IndentResponse
-                ? JsonSerializer.Serialize(result, IndentedOptions)
-                : JsonSerializer.Serialize(result);
-
-            return json;
+            return ToolResultHelper.Serialize(result, toolsConfiguration.Value.IndentResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error retrieving types");
-            throw;
+            return ToolResultHelper.SerializeError(ex, toolsConfiguration.Value.IndentResponse, "NamespaceTypes");
         }
     }
 }
