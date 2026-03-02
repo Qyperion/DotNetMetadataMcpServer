@@ -34,6 +34,8 @@ public class TypeSearchToolServiceTests
 
         Assert.That(response.TypeMatches, Is.Not.Empty);
         Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("TypeToolService", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.EqualTo(20));
     }
 
     [Test]
@@ -51,5 +53,36 @@ public class TypeSearchToolServiceTests
 
         Assert.That(response.TypeMatches, Is.Not.Empty);
         Assert.That(response.TypeMatches.All(t => t.AssemblyName.Equals("DotNetMetadataMcpServer", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.EqualTo(50));
+    }
+
+    [Test]
+    public void SearchTypes_WithCaseSensitiveFilter_RespectsCaseSensitivity()
+    {
+        var sensitive = _service.SearchTypes(
+            _testProjectPath,
+            "typesearchtoolservice",
+            [],
+            [],
+            true,
+            "fullName",
+            "asc",
+            1,
+            20);
+
+        var insensitive = _service.SearchTypes(
+            _testProjectPath,
+            "typesearchtoolservice",
+            [],
+            [],
+            false,
+            "fullName",
+            "asc",
+            1,
+            20);
+
+        Assert.That(sensitive.TypeMatches, Is.Empty);
+        Assert.That(insensitive.TypeMatches, Is.Not.Empty);
     }
 }

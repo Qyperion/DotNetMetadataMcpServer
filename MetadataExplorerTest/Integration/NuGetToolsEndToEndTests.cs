@@ -80,6 +80,8 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response.AvailablePages, Is.Not.Empty);
         Assert.That(response.SortBy, Is.EqualTo("relevance"));
         Assert.That(response.SortDirection, Is.EqualTo("asc"));
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.GreaterThan(0));
 
         // Verify the first matching package has all expected fields populated
         var newtonsoftPkg = response.Packages.First(p =>
@@ -285,6 +287,8 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response.AvailablePages, Is.Not.Empty);
         Assert.That(response.SortBy, Is.EqualTo("relevance"));
         Assert.That(response.SortDirection, Is.EqualTo("asc"));
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.GreaterThan(0));
 
         // Verify version entries have expected fields
         var version = response.Versions.First();
@@ -359,6 +363,32 @@ public class NuGetToolsEndToEndTests : McpServerIntegrationTestBase
         var group = version.DependencyGroups.First();
         Assert.That(group.TargetFramework, Is.Not.Null.And.Not.Empty,
             "Dependency group should have a TargetFramework");
+    }
+
+    [Test]
+    public async Task NuGetPackageVersions_WithFrameworkFilter_Should_Filter_DependencyGroups()
+    {
+        await using var client = await CreateMcpClientAsync();
+        var tools = await client.ListToolsAsync();
+        var tool = tools.First(t => t.Name == "NuGetPackageVersions");
+
+        var arguments = new AIFunctionArguments
+        {
+            ["packageId"] = "Microsoft.Extensions.DependencyInjection",
+            ["includePrerelease"] = false,
+            ["includeFrameworks"] = new[] { "*8*" },
+            ["pageNumber"] = 1
+        };
+
+        var result = await tool.InvokeAsync(arguments);
+        var text = ExtractText(result);
+        var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(text);
+        Assert.That(response, Is.Not.Null);
+        Assert.That(response!.Versions, Is.Not.Empty);
+
+        var withGroups = response.Versions.Where(v => v.DependencyGroups.Count > 0).ToList();
+        Assert.That(withGroups, Is.Not.Empty);
+        Assert.That(withGroups.SelectMany(v => v.DependencyGroups).All(g => g.TargetFramework.Contains("8", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 
     [Test]

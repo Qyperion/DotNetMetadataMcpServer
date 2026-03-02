@@ -706,6 +706,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response.TypeMatches.Any(t => t.FullName.Contains("ProductService", StringComparison.OrdinalIgnoreCase)), Is.True);
         Assert.That(response.SortBy, Is.EqualTo("fullName"));
         Assert.That(response.SortDirection, Is.EqualTo("asc"));
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.GreaterThan(0));
     }
 
     [Test]
@@ -770,6 +772,8 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         Assert.That(response!.Dependencies, Is.Not.Empty);
         Assert.That(response.TotalNodes, Is.GreaterThan(0));
         Assert.That(response.ViewMode, Is.EqualTo("tree"));
+        Assert.That(response.TotalItems, Is.GreaterThan(0));
+        Assert.That(response.PageSize, Is.EqualTo(response.TotalItems));
     }
 
     [Test]
