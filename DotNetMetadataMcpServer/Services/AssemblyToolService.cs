@@ -1,5 +1,6 @@
 using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 
 namespace DotNetMetadataMcpServer.Services
 {
@@ -14,13 +15,14 @@ namespace DotNetMetadataMcpServer.Services
             _cache = cache;
         }
 
-        public AssemblyToolResponse GetAssemblies(string projectFileAbsolutePath, List<string> filters, int pageNumber, int pageSize)
+        public AssemblyToolResponse GetAssemblies(string projectFileAbsolutePath, List<string> filters, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Get main assembly name and dependency names from full data
             var assemblies = new List<string> { Path.GetFileNameWithoutExtension(metadata.AssemblyPath) };
             assemblies.AddRange(FlattenDependencies(metadata.Dependencies)
-                .Where(d => string.IsNullOrEmpty(d.NodeType) || d.NodeType == "package")
+                .Where(d => string.IsNullOrEmpty(d.NodeType) || d.NodeType == DependencyNodeTypes.Package)
                 .Select(d => d.Name));
 
             assemblies = assemblies
@@ -29,7 +31,7 @@ namespace DotNetMetadataMcpServer.Services
 
             if (filters.Any())
             {
-                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter)).ToList();
                 assemblies = assemblies.Where(a => predicates.Any(predicate => predicate.Invoke(a))).ToList();
             }
             
@@ -38,7 +40,9 @@ namespace DotNetMetadataMcpServer.Services
             {
                 AssemblyNames = paged,
                 CurrentPage = pageNumber,
-                AvailablePages = availablePages
+                AvailablePages = availablePages,
+                TotalItems = assemblies.Count,
+                PageSize = pageSize
             };
         }
 

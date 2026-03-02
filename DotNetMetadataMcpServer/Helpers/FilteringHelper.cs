@@ -9,10 +9,13 @@ public static class FilteringHelper
         return "^" + Regex.Escape(filter).Replace("\\*", ".*") + "$";
     }
 
-    public static Predicate<string> PrepareFilteringPredicate(string filter)
+    public static Predicate<string> PrepareFilteringPredicate(string filter, bool caseSensitive = false)
     {
         var pattern = PrepareFilteringPattern(filter);
-        var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        var options = caseSensitive
+            ? RegexOptions.Compiled
+            : RegexOptions.IgnoreCase | RegexOptions.Compiled;
+        var regex = new Regex(pattern, options);
         return input => regex.IsMatch(input);
     }
 }

@@ -22,6 +22,7 @@ public class DependencyInfo
     public string Name { get; set; } = "";
     public string Version { get; set; } = "";
     public string NodeType { get; set; } = "";  // "package", "project", "root", "tfm", ...
+    public string? Framework { get; set; }
 
     public List<DependencyInfo> Children { get; set; } = [];
 

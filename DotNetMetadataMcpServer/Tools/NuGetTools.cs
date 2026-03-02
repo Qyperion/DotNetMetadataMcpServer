@@ -1,5 +1,6 @@
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Helpers;
+using DotNetMetadataMcpServer.Models.Base;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
@@ -19,9 +20,12 @@ public sealed class NuGetTools
         [Description("The search query to find packages")] string searchQuery,
         [Description("Include prerelease versions in search results")] bool includePrerelease = false,
         [Description("Full text filters with wildcard support")] List<string>? fullTextFiltersWithWildCardSupport = null,
-        [Description("Sort field: 'relevance' (default), 'id', 'version', 'downloads', 'published'")] string sortBy = "relevance",
-        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = "asc",
-        [Description("Page number (1-based)")] int pageNumber = 1)
+        [Description("Include target frameworks (wildcards).") ] List<string>? includeFrameworks = null,
+        [Description("Exclude target frameworks (wildcards).") ] List<string>? excludeFrameworks = null,
+        [Description("Sort field: 'relevance' (default), 'id', 'version', 'downloads', 'published'")] string sortBy = NuGetSearchSortFields.Relevance,
+        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = SortDirections.Asc,
+        [Description("Page number (1-based)")] int pageNumber = 1,
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginScope("{NuGetSearchToolExecutionUid}", Guid.NewGuid());
 
@@ -32,14 +36,20 @@ public sealed class NuGetTools
         {
             var filters = fullTextFiltersWithWildCardSupport ?? [];
 
-            var result = await nuGetToolService.SearchPackagesAsync(
-                searchQuery: searchQuery,
-                filters: filters,
-                includePrerelease: includePrerelease,
-                sortBy: sortBy,
-                sortDirection: sortDirection,
-                pageNumber: pageNumber,
-                pageSize: toolsConfiguration.Value.DefaultPageSize);
+            var result = await ToolResultHelper.ExecuteWithTimeoutAsync(
+                token => nuGetToolService.SearchPackagesAsync(
+                    searchQuery: searchQuery,
+                    filters: filters,
+                    includePrerelease: includePrerelease,
+                    sortBy: sortBy,
+                    sortDirection: sortDirection,
+                    pageNumber: pageNumber,
+                    pageSize: toolsConfiguration.Value.DefaultPageSize,
+                    cancellationToken: token,
+                    includeFrameworks: includeFrameworks,
+                    excludeFrameworks: excludeFrameworks),
+                toolsConfiguration.Value.NuGetPackageSearchTimeoutSeconds,
+                cancellationToken);
 
             logger.LogDebug("NuGet packages search completed successfully: {@SearchResult}", result);
 
@@ -61,9 +71,12 @@ public sealed class NuGetTools
         [Description("The package ID to get versions for")] string packageId,
         [Description("Include prerelease versions in results")] bool includePrerelease = false,
         [Description("Full text filters with wildcard support")] List<string>? fullTextFiltersWithWildCardSupport = null,
-        [Description("Sort field: 'relevance' (default), 'version', 'downloads', 'published'")] string sortBy = "relevance",
-        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = "asc",
-        [Description("Page number (1-based)")] int pageNumber = 1)
+        [Description("Include target frameworks (wildcards).") ] List<string>? includeFrameworks = null,
+        [Description("Exclude target frameworks (wildcards).") ] List<string>? excludeFrameworks = null,
+        [Description("Sort field: 'relevance' (default), 'version', 'downloads', 'published'")] string sortBy = NuGetVersionSortFields.Relevance,
+        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = SortDirections.Asc,
+        [Description("Page number (1-based)")] int pageNumber = 1,
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginScope("{NuGetVersionsToolExecutionUid}", Guid.NewGuid());
 
@@ -74,14 +87,20 @@ public sealed class NuGetTools
         {
             var filters = fullTextFiltersWithWildCardSupport ?? [];
 
-            var result = await nuGetToolService.GetPackageVersionsAsync(
-                packageId: packageId,
-                filters: filters,
-                includePrerelease: includePrerelease,
-                sortBy: sortBy,
-                sortDirection: sortDirection,
-                pageNumber: pageNumber,
-                pageSize: toolsConfiguration.Value.DefaultPageSize);
+            var result = await ToolResultHelper.ExecuteWithTimeoutAsync(
+                token => nuGetToolService.GetPackageVersionsAsync(
+                    packageId: packageId,
+                    filters: filters,
+                    includePrerelease: includePrerelease,
+                    sortBy: sortBy,
+                    sortDirection: sortDirection,
+                    pageNumber: pageNumber,
+                    pageSize: toolsConfiguration.Value.DefaultPageSize,
+                    cancellationToken: token,
+                    includeFrameworks: includeFrameworks,
+                    excludeFrameworks: excludeFrameworks),
+                toolsConfiguration.Value.NuGetPackageVersionsTimeoutSeconds,
+                cancellationToken);
 
             logger.LogDebug("NuGet package versions retrieved successfully: {@VersionsResult}", result);
 

@@ -1,5 +1,6 @@
 using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 
 namespace DotNetMetadataMcpServer.Services;
 
@@ -24,6 +25,32 @@ public class TypeSearchToolService
         int pageNumber,
         int pageSize)
     {
+        return SearchTypes(
+            projectFileAbsolutePath,
+            searchQuery,
+            allowedAssemblyNames,
+            filters,
+            false,
+            sortBy,
+            sortDirection,
+            pageNumber,
+            pageSize,
+            CancellationToken.None);
+    }
+
+    public TypeSearchToolResponse SearchTypes(
+        string projectFileAbsolutePath,
+        string searchQuery,
+        List<string> allowedAssemblyNames,
+        List<string> filters,
+        bool caseSensitive,
+        string sortBy,
+        string sortDirection,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
         var flattenedDependencies = FlattenDependencies(metadata.Dependencies).ToList();
         var normalizedAllowedAssemblies = allowedAssemblyNames
@@ -69,14 +96,15 @@ public class TypeSearchToolService
 
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
+            var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             matchingTypes = matchingTypes.Where(t =>
-                t.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                GetTypeShortName(t.FullName).Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                t.FullName.Contains(searchQuery, comparison) ||
+                GetTypeShortName(t.FullName).Contains(searchQuery, comparison));
         }
 
         if (filters.Count > 0)
         {
-            var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+            var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter, caseSensitive)).ToList();
             matchingTypes = matchingTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
         }
 
@@ -89,6 +117,8 @@ public class TypeSearchToolService
             TypeMatches = paged,
             CurrentPage = pageNumber,
             AvailablePages = availablePages,
+            TotalItems = orderedTypes.Count,
+            PageSize = pageSize,
             SortBy = NormalizeSortBy(sortBy),
             SortDirection = NormalizeSortDirection(sortDirection)
         };
@@ -97,11 +127,11 @@ public class TypeSearchToolService
     private static IEnumerable<TypeSearchMatch> Order(IEnumerable<TypeSearchMatch> items, string sortBy, string sortDirection)
     {
         var normalizedSortBy = NormalizeSortBy(sortBy);
-        var isDescending = string.Equals(NormalizeSortDirection(sortDirection), "desc", StringComparison.OrdinalIgnoreCase);
+        var isDescending = string.Equals(NormalizeSortDirection(sortDirection), SortDirections.Desc, StringComparison.OrdinalIgnoreCase);
 
         IOrderedEnumerable<TypeSearchMatch> ordered = normalizedSortBy switch
         {
-            "assemblyName" => isDescending
+            TypeSearchSortFields.AssemblyName => isDescending
                 ? items.OrderByDescending(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase)
                 : items.OrderBy(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase),
             _ => isDescending
@@ -109,7 +139,7 @@ public class TypeSearchToolService
                 : items.OrderBy(t => t.FullName, StringComparer.OrdinalIgnoreCase)
         };
 
-        return normalizedSortBy == "assemblyName"
+        return normalizedSortBy == TypeSearchSortFields.AssemblyName
             ? ordered.ThenBy(t => t.FullName, StringComparer.OrdinalIgnoreCase)
             : ordered.ThenBy(t => t.AssemblyName, StringComparer.OrdinalIgnoreCase);
     }
@@ -133,16 +163,16 @@ public class TypeSearchToolService
 
     private static string NormalizeSortBy(string sortBy)
     {
-        return string.Equals(sortBy, "assemblyName", StringComparison.OrdinalIgnoreCase)
-            ? "assemblyName"
-            : "fullName";
+        return string.Equals(sortBy, TypeSearchSortFields.AssemblyName, StringComparison.OrdinalIgnoreCase)
+            ? TypeSearchSortFields.AssemblyName
+            : TypeSearchSortFields.FullName;
     }
 
     private static string NormalizeSortDirection(string sortDirection)
     {
-        return string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase)
-            ? "desc"
-            : "asc";
+        return string.Equals(sortDirection, SortDirections.Desc, StringComparison.OrdinalIgnoreCase)
+            ? SortDirections.Desc
+            : SortDirections.Asc;
     }
 
     private static IEnumerable<DependencyInfo> FlattenDependencies(IEnumerable<DependencyInfo> dependencies)

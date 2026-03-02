@@ -12,12 +12,13 @@ public sealed class InheritanceTools
 {
     [McpServerTool(Name = "InheritanceHierarchy")]
     [Description("Retrieves base type chain and derived types for a specific type across project and dependency assemblies.")]
-    public static string GetInheritanceHierarchy(
+    public static async Task<string> GetInheritanceHierarchy(
         InheritanceToolService inheritanceToolService,
         IOptions<ToolsConfiguration> toolsConfiguration,
         ILogger<InheritanceTools> logger,
         [Description("The absolute path to the project file (.csproj)")] string projectFileAbsolutePath,
-        [Description("Type full name or short name to inspect (e.g., 'Namespace.MyType' or 'MyType')")] string typeName)
+        [Description("Type full name or short name to inspect (e.g., 'Namespace.MyType' or 'MyType')")] string typeName,
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginScope("{InheritanceToolExecutionUid}", Guid.NewGuid());
 
@@ -28,7 +29,10 @@ public sealed class InheritanceTools
 
         try
         {
-            var result = inheritanceToolService.GetHierarchy(projectFileAbsolutePath, typeName);
+            var result = await ToolResultHelper.ExecuteWithTimeoutAsync(
+                token => Task.Run(() => inheritanceToolService.GetHierarchy(projectFileAbsolutePath, typeName, token), token),
+                toolsConfiguration.Value.InheritanceToolTimeoutSeconds,
+                cancellationToken);
 
             logger.LogDebug("Inheritance hierarchy retrieved successfully: {@InheritanceResult}", result);
 

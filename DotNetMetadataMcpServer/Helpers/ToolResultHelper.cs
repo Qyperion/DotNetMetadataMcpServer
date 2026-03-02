@@ -27,6 +27,17 @@ public static class ToolResultHelper
         return Serialize(error, indent);
     }
 
+    public static async Task<T> ExecuteWithTimeoutAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        int timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        var safeTimeoutSeconds = timeoutSeconds <= 0 ? 30 : timeoutSeconds;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(safeTimeoutSeconds));
+        return await operation(cts.Token);
+    }
+
     private static string MapErrorCode(Exception exception)
     {
         return exception switch

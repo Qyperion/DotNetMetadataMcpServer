@@ -16,8 +16,9 @@ namespace DotNetMetadataMcpServer.Services
 
         // Changed signature: now accepts a projectFileAbsolutePath and an allowed list of namespaces.
         public TypeToolResponse GetTypes(string projectFileAbsolutePath,
-            List<string> allowedNamespaces, List<string> filters, int pageNumber, int pageSize)
+            List<string> allowedNamespaces, List<string> filters, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             // Collect all types from project and dependencies.
             var dependencyTypes = FlattenDependencies(metadata.Dependencies).SelectMany(d => d.Types);
@@ -36,7 +37,7 @@ namespace DotNetMetadataMcpServer.Services
             // Apply additional filter if provided.
             if (filters.Any())
             {
-                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter)).ToList();
                 allTypes = allTypes.Where(t => predicates.Any(predicate => predicate.Invoke(t.FullName)));
             }
 
@@ -47,7 +48,9 @@ namespace DotNetMetadataMcpServer.Services
             {
                 TypeData = paged,
                 CurrentPage = pageNumber,
-                AvailablePages = availablePages
+                AvailablePages = availablePages,
+                TotalItems = allTypesList.Count,
+                PageSize = pageSize
             };
         }
 

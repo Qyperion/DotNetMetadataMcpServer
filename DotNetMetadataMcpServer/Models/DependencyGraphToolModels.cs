@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using DotNetMetadataMcpServer.Models.Base;
 
 namespace DotNetMetadataMcpServer.Models;
 
-public class DependencyGraphToolResponse
+public class DependencyGraphToolResponse : PagedResponse
 {
     public required string ViewMode { get; init; }
 
@@ -19,7 +20,9 @@ public class DependencyGraphNodeResponse
     public string? Version { get; init; }
 
     [Required]
-    public required string NodeType { get; init; }
+    public required DependencyNodeTypeDto NodeType { get; init; }
+
+    public string? Framework { get; init; }
 
     public int TypeCount { get; init; }
 

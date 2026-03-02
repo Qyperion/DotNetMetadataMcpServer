@@ -6,6 +6,14 @@ public class ToolsConfiguration
 
     public int DefaultPageSize { get; set; } = 20;
     public bool IndentResponse { get; set; } = true;
+    public int AssemblyToolTimeoutSeconds { get; set; } = 30;
+    public int NamespaceToolTimeoutSeconds { get; set; } = 30;
+    public int TypeToolTimeoutSeconds { get; set; } = 30;
+    public int TypeSearchToolTimeoutSeconds { get; set; } = 30;
+    public int InheritanceToolTimeoutSeconds { get; set; } = 30;
+    public int DependencyGraphToolTimeoutSeconds { get; set; } = 30;
+    public int NuGetPackageSearchTimeoutSeconds { get; set; } = 45;
+    public int NuGetPackageVersionsTimeoutSeconds { get; set; } = 60;
     public List<NuGetSourceConfiguration> NuGetSources { get; set; } =
     [
         new NuGetSourceConfiguration

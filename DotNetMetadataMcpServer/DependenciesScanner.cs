@@ -1,5 +1,6 @@
 using DependencyGraph.Core.Graph;
 using DependencyGraph.Core.Graph.Factory;
+using DotNetMetadataMcpServer.Models.Base;
 using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.ProjectModel;
@@ -121,7 +122,7 @@ public class DependenciesScanner : IDependenciesScanner
 
         foreach (var child in tfmNode.Dependencies)
         {
-            var d = BuildDependencyInfo(child, baseDir);
+            var d = BuildDependencyInfo(child, baseDir, tfmNode.TargetFrameworkIdentifier);
             if (d != null)
             {
                 depList.Add(d);
@@ -138,12 +139,14 @@ public class DependenciesScanner : IDependenciesScanner
         {
             Name = lockFileTargetLibrary.Name ?? "Unknown",
             Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
-            NodeType = "package"
+            NodeType = DependencyNodeTypes.Package,
+            Framework = null
         };
 
         foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
         {
             var rel = lockFileItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
+            info.Framework ??= ExtractFrameworkFromRuntimeAssemblyPath(rel);
             var fileName = Path.GetFileName(rel);
             var full = Path.Combine(baseDir, fileName);
             var types = _reflection.LoadAssemblyTypes(full);
@@ -153,7 +156,7 @@ public class DependenciesScanner : IDependenciesScanner
         return info;
     }
 
-    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir)
+    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir, string? framework)
     {
         // Check if already visited
         if (!_visitedNodes.Add(node))
@@ -166,12 +169,13 @@ public class DependenciesScanner : IDependenciesScanner
                     var info = new DependencyInfo
                     {
                         Name = rootNode.Name,
-                        NodeType = "root"
+                        NodeType = DependencyNodeTypes.Root,
+                        Framework = framework
                     };
 
                     foreach (var child in rootNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child, baseDir);
+                        var c = BuildDependencyInfo(child, baseDir, framework);
                         if (c != null)
                             info.Children.Add(c);
                     }
@@ -184,12 +188,13 @@ public class DependenciesScanner : IDependenciesScanner
                     {
                         Name = tfmNode.ProjectName,
                         Version = tfmNode.TargetFrameworkIdentifier,
-                        NodeType = "target_framework"
+                        NodeType = DependencyNodeTypes.TargetFramework,
+                        Framework = tfmNode.TargetFrameworkIdentifier
                     };
 
                     foreach (var child in tfmNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child, baseDir);
+                        var c = BuildDependencyInfo(child, baseDir, tfmNode.TargetFrameworkIdentifier);
                         if (c != null)
                             info.Children.Add(c);
                     }
@@ -202,7 +207,8 @@ public class DependenciesScanner : IDependenciesScanner
                     {
                         Name = pkgNode.Name,
                         Version = pkgNode.Version.ToNormalizedString(),
-                        NodeType = "package"
+                        NodeType = DependencyNodeTypes.Package,
+                        Framework = framework
                     };
 
                     // Load RuntimeAssemblies
@@ -217,7 +223,7 @@ public class DependenciesScanner : IDependenciesScanner
 
                     foreach (var child in pkgNode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child, baseDir);
+                        var c = BuildDependencyInfo(child, baseDir, framework);
                         if (c != null)
                             info.Children.Add(c);
                     }
@@ -230,12 +236,13 @@ public class DependenciesScanner : IDependenciesScanner
                     var info = new DependencyInfo
                     {
                         Name = pnode.Name,
-                        NodeType = "project"
+                        NodeType = DependencyNodeTypes.Project,
+                        Framework = framework
                     };
 
                     foreach (var child in pnode.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child, baseDir);
+                        var c = BuildDependencyInfo(child, baseDir, framework);
                         if (c != null)
                             info.Children.Add(c);
                     }
@@ -247,12 +254,13 @@ public class DependenciesScanner : IDependenciesScanner
                     var info = new DependencyInfo
                     {
                         Name = node.ToString() ?? "Unknown",
-                        NodeType = "unknown"
+                        NodeType = DependencyNodeTypes.Unknown,
+                        Framework = framework
                     };
 
                     foreach (var child in node.Dependencies)
                     {
-                        var c = BuildDependencyInfo(child, baseDir);
+                        var c = BuildDependencyInfo(child, baseDir, framework);
                         if (c != null)
                             info.Children.Add(c);
                     }
@@ -289,5 +297,16 @@ public class DependenciesScanner : IDependenciesScanner
     public void Dispose()
     {
         AppDomain.CurrentDomain.AssemblyResolve -= ResolveAssembly;
+    }
+
+    private static string? ExtractFrameworkFromRuntimeAssemblyPath(string runtimeAssemblyPath)
+    {
+        var parts = runtimeAssemblyPath.Split('/');
+        if (parts.Length >= 2 && string.Equals(parts[0], "lib", StringComparison.OrdinalIgnoreCase))
+        {
+            return parts[1];
+        }
+
+        return null;
     }
 }

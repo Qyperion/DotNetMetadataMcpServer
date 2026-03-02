@@ -13,14 +13,16 @@ public class InheritanceToolService
         _cache = cache;
     }
 
-    public InheritanceHierarchyResponse GetHierarchy(string projectFileAbsolutePath, string typeQuery)
+    public InheritanceHierarchyResponse GetHierarchy(string projectFileAbsolutePath, string typeQuery, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(typeQuery))
         {
             throw new ArgumentException("Type query must not be empty.", nameof(typeQuery));
         }
 
         var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
+        cancellationToken.ThrowIfCancellationRequested();
         var dependencyTypes = FlattenDependencies(metadata.Dependencies).SelectMany(d => d.Types);
         var allTypes = metadata.ProjectTypes.Concat(dependencyTypes).ToList();
 

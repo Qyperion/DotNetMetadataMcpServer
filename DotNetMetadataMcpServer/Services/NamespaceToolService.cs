@@ -16,8 +16,9 @@ namespace DotNetMetadataMcpServer.Services
 
         // Changed signature: now accepts a projectFileAbsolutePath and a list of allowed assembly names.
         public NamespaceToolResponse GetNamespaces(string projectFileAbsolutePath,
-            List<string> allowedAssemblyNames, List<string> filters, int pageNumber, int pageSize)
+            List<string> allowedAssemblyNames, List<string> filters, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var metadata = _cache.GetOrAdd(projectFileAbsolutePath, path => _scanner.ScanProject(path));
             var flattenedDependencies = FlattenDependencies(metadata.Dependencies).ToList();
 
@@ -63,17 +64,21 @@ namespace DotNetMetadataMcpServer.Services
             // Apply additional filter if provided.
             if (filters.Any())
             {
-                var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter)).ToList();
                 allNamespaces = allNamespaces.Where(n => predicates.Any(predicate => predicate.Invoke(n)));
             }
 
+            var allNamespacesList = allNamespaces.ToList();
+
             // Paginate the namespaces.
-            var (paged, availablePages) = PaginationHelper.FilterAndPaginate(allNamespaces, _ => true, pageNumber, pageSize);
+            var (paged, availablePages) = PaginationHelper.FilterAndPaginate(allNamespacesList, _ => true, pageNumber, pageSize);
             return new NamespaceToolResponse
             {
                 Namespaces = paged,
                 CurrentPage = pageNumber,
-                AvailablePages = availablePages
+                AvailablePages = availablePages,
+                TotalItems = allNamespacesList.Count,
+                PageSize = pageSize
             };
         }
 

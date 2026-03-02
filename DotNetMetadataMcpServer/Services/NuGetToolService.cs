@@ -1,6 +1,7 @@
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Helpers;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 using Microsoft.Extensions.Options;
 using NuGet.Common;
 using NuGet.Protocol;
@@ -66,17 +67,21 @@ namespace DotNetMetadataMcpServer.Services
             bool includePrerelease,
             int pageNumber,
             int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            List<string>? includeFrameworks = null,
+            List<string>? excludeFrameworks = null)
         {
             return await SearchPackagesAsync(
                 searchQuery,
                 filters,
                 includePrerelease,
-                "relevance",
-                "asc",
+                NuGetSearchSortFields.Relevance,
+                SortDirections.Asc,
                 pageNumber,
                 pageSize,
-                cancellationToken);
+                cancellationToken,
+                includeFrameworks ?? [],
+                excludeFrameworks ?? []);
         }
 
         public async Task<NuGetPackageSearchResponse> SearchPackagesAsync(
@@ -87,13 +92,22 @@ namespace DotNetMetadataMcpServer.Services
             string sortDirection,
             int pageNumber,
             int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            List<string>? includeFrameworks = null,
+            List<string>? excludeFrameworks = null)
         {
             _logger.LogInformation("Searching NuGet packages with query: {Query}, includePrerelease: {IncludePrerelease} across {SourceCount} sources",
                 searchQuery, includePrerelease, _repositories.Count);
 
             try
             {
+                var includeFrameworkPredicates = (includeFrameworks ?? [])
+                    .Select(filter => FilteringHelper.PrepareFilteringPredicate(filter))
+                    .ToList();
+                var excludeFrameworkPredicates = (excludeFrameworks ?? [])
+                    .Select(filter => FilteringHelper.PrepareFilteringPredicate(filter))
+                    .ToList();
+
                 // Search across all configured repositories in parallel for performance
                 var searchTasks = _repositories.Select((repo, index) => new { Repo = repo, Priority = index })
                     .Select(async item =>
@@ -131,6 +145,18 @@ namespace DotNetMetadataMcpServer.Services
                         // take precedence over packages from lower priority sources
                         if (!packages.ContainsKey(package.Identity.Id))
                         {
+                            var frameworkNames = package.DependencySets
+                                .Select(set => set.TargetFramework?.ToString())
+                                .Where(f => !string.IsNullOrWhiteSpace(f))
+                                .Select(f => f!)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+
+                            if (!MatchesFrameworkFilters(frameworkNames, includeFrameworkPredicates, excludeFrameworkPredicates))
+                            {
+                                continue;
+                            }
+
                             packages[package.Identity.Id] = new NuGetPackageInfo
                             {
                                 Id = package.Identity.Id,
@@ -149,7 +175,7 @@ namespace DotNetMetadataMcpServer.Services
                 // Apply additional filtering if needed
                 if (filters.Any())
                 {
-                    var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                    var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter)).ToList();
                     packageList = packageList
                         .Where(p => predicates.Any(predicate =>
                             predicate.Invoke(p.Id) ||
@@ -171,6 +197,8 @@ namespace DotNetMetadataMcpServer.Services
                     Packages = paged,
                     CurrentPage = pageNumber,
                     AvailablePages = availablePages,
+                    TotalItems = packageList.Count,
+                    PageSize = pageSize,
                     SortBy = NormalizeSearchSortBy(sortBy),
                     SortDirection = NormalizeSortDirection(sortDirection)
                 };
@@ -188,17 +216,21 @@ namespace DotNetMetadataMcpServer.Services
             bool includePrerelease,
             int pageNumber,
             int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            List<string>? includeFrameworks = null,
+            List<string>? excludeFrameworks = null)
         {
             return await GetPackageVersionsAsync(
                 packageId,
                 filters,
                 includePrerelease,
-                "relevance",
-                "asc",
+                NuGetVersionSortFields.Relevance,
+                SortDirections.Asc,
                 pageNumber,
                 pageSize,
-                cancellationToken);
+                cancellationToken,
+                includeFrameworks ?? [],
+                excludeFrameworks ?? []);
         }
 
         public async Task<NuGetPackageVersionsResponse> GetPackageVersionsAsync(
@@ -209,13 +241,22 @@ namespace DotNetMetadataMcpServer.Services
             string sortDirection,
             int pageNumber,
             int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            List<string>? includeFrameworks = null,
+            List<string>? excludeFrameworks = null)
         {
             _logger.LogInformation("Getting versions for NuGet package: {PackageId}, includePrerelease: {IncludePrerelease} across {SourceCount} sources",
                 packageId, includePrerelease, _repositories.Count);
 
             try
             {
+                var includeFrameworkPredicates = (includeFrameworks ?? [])
+                    .Select(filter => FilteringHelper.PrepareFilteringPredicate(filter))
+                    .ToList();
+                var excludeFrameworkPredicates = (excludeFrameworks ?? [])
+                    .Select(filter => FilteringHelper.PrepareFilteringPredicate(filter))
+                    .ToList();
+
                 // Query all repositories in parallel for performance
                 var metadataTasks = _repositories.Select((repo, index) => new { Repo = repo, Priority = index })
                     .Select(async item =>
@@ -268,9 +309,15 @@ namespace DotNetMetadataMcpServer.Services
                             // Add dependency groups
                             foreach (var group in metadata.DependencySets)
                             {
+                                var frameworkName = group.TargetFramework.ToString();
+                                if (!MatchesFramework(frameworkName, includeFrameworkPredicates, excludeFrameworkPredicates))
+                                {
+                                    continue;
+                                }
+
                                 var dependencyGroup = new NuGetPackageDependencyGroup
                                 {
-                                    TargetFramework = group.TargetFramework.ToString(),
+                                    TargetFramework = frameworkName,
                                     Dependencies = []
                                 };
 
@@ -286,6 +333,12 @@ namespace DotNetMetadataMcpServer.Services
                                 packageInfo.DependencyGroups.Add(dependencyGroup);
                             }
 
+                            if ((includeFrameworkPredicates.Count > 0 || excludeFrameworkPredicates.Count > 0) &&
+                                packageInfo.DependencyGroups.Count == 0)
+                            {
+                                continue;
+                            }
+
                             versionDict[version] = packageInfo;
                         }
                     }
@@ -296,7 +349,7 @@ namespace DotNetMetadataMcpServer.Services
                 // Apply additional filtering if needed
                 if (filters.Any())
                 {
-                    var predicates = filters.Select(FilteringHelper.PrepareFilteringPredicate).ToList();
+                    var predicates = filters.Select(filter => FilteringHelper.PrepareFilteringPredicate(filter)).ToList();
                     versions = versions
                         .Where(v => predicates.Any(predicate =>
                             predicate.Invoke(v.Version) ||
@@ -319,6 +372,8 @@ namespace DotNetMetadataMcpServer.Services
                     Versions = paged,
                     CurrentPage = pageNumber,
                     AvailablePages = availablePages,
+                    TotalItems = versions.Count,
+                    PageSize = pageSize,
                     SortBy = NormalizeVersionSortBy(sortBy),
                     SortDirection = NormalizeSortDirection(sortDirection)
                 };
@@ -333,18 +388,18 @@ namespace DotNetMetadataMcpServer.Services
         private static List<NuGetPackageInfo> OrderSearchResults(List<NuGetPackageInfo> packages, string sortBy, string sortDirection)
         {
             var normalizedSortBy = NormalizeSearchSortBy(sortBy);
-            var isDescending = NormalizeSortDirection(sortDirection) == "desc";
+            var isDescending = NormalizeSortDirection(sortDirection) == SortDirections.Desc;
 
             IOrderedEnumerable<NuGetPackageInfo> ordered = normalizedSortBy switch
             {
-                "relevance" => packages.OrderBy(_ => 0),
-                "version" => isDescending
+                NuGetSearchSortFields.Relevance => packages.OrderBy(_ => 0),
+                NuGetSearchSortFields.Version => isDescending
                     ? packages.OrderByDescending(p => ParseVersion(p.Version))
                     : packages.OrderBy(p => ParseVersion(p.Version)),
-                "downloads" => isDescending
+                NuGetSearchSortFields.Downloads => isDescending
                     ? packages.OrderByDescending(p => p.DownloadCount)
                     : packages.OrderBy(p => p.DownloadCount),
-                "published" => isDescending
+                NuGetSearchSortFields.Published => isDescending
                     ? packages.OrderByDescending(p => p.Published ?? DateTimeOffset.MinValue)
                     : packages.OrderBy(p => p.Published ?? DateTimeOffset.MinValue),
                 _ => isDescending
@@ -356,7 +411,7 @@ namespace DotNetMetadataMcpServer.Services
                 .ThenBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(p => ParseVersion(p.Version));
 
-            return normalizedSortBy == "relevance"
+            return normalizedSortBy == NuGetSearchSortFields.Relevance
                 ? packages
                 : stableOrdered.ToList();
         }
@@ -364,15 +419,15 @@ namespace DotNetMetadataMcpServer.Services
         private static List<NuGetPackageInfo> OrderVersionResults(List<NuGetPackageInfo> versions, string sortBy, string sortDirection)
         {
             var normalizedSortBy = NormalizeVersionSortBy(sortBy);
-            var isDescending = NormalizeSortDirection(sortDirection) == "desc";
+            var isDescending = NormalizeSortDirection(sortDirection) == SortDirections.Desc;
 
             IOrderedEnumerable<NuGetPackageInfo> ordered = normalizedSortBy switch
             {
-                "relevance" => versions.OrderBy(_ => 0),
-                "downloads" => isDescending
+                NuGetVersionSortFields.Relevance => versions.OrderBy(_ => 0),
+                NuGetVersionSortFields.Downloads => isDescending
                     ? versions.OrderByDescending(v => v.DownloadCount)
                     : versions.OrderBy(v => v.DownloadCount),
-                "published" => isDescending
+                NuGetVersionSortFields.Published => isDescending
                     ? versions.OrderByDescending(v => v.Published ?? DateTimeOffset.MinValue)
                     : versions.OrderBy(v => v.Published ?? DateTimeOffset.MinValue),
                 _ => isDescending
@@ -384,7 +439,7 @@ namespace DotNetMetadataMcpServer.Services
                 .ThenBy(v => v.Id, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(v => ParseVersion(v.Version));
 
-            return normalizedSortBy == "relevance"
+            return normalizedSortBy == NuGetVersionSortFields.Relevance
                 ? versions
                 : stableOrdered.ToList();
         }
@@ -398,20 +453,21 @@ namespace DotNetMetadataMcpServer.Services
 
         private static string NormalizeSortDirection(string sortDirection)
         {
-            return string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase)
-                ? "desc"
-                : "asc";
+            return string.Equals(sortDirection, SortDirections.Desc, StringComparison.OrdinalIgnoreCase)
+                ? SortDirections.Desc
+                : SortDirections.Asc;
         }
 
         private static string NormalizeSearchSortBy(string sortBy)
         {
             return sortBy?.ToLowerInvariant() switch
             {
-                "relevance" => "relevance",
-                "version" => "version",
-                "downloads" => "downloads",
-                "published" => "published",
-                _ => "relevance"
+                NuGetSearchSortFields.Relevance => NuGetSearchSortFields.Relevance,
+                NuGetSearchSortFields.Version => NuGetSearchSortFields.Version,
+                NuGetSearchSortFields.Downloads => NuGetSearchSortFields.Downloads,
+                NuGetSearchSortFields.Published => NuGetSearchSortFields.Published,
+                NuGetSearchSortFields.Id => NuGetSearchSortFields.Id,
+                _ => NuGetSearchSortFields.Relevance
             };
         }
 
@@ -419,12 +475,34 @@ namespace DotNetMetadataMcpServer.Services
         {
             return sortBy?.ToLowerInvariant() switch
             {
-                "relevance" => "relevance",
-                "downloads" => "downloads",
-                "published" => "published",
-                "version" => "version",
-                _ => "relevance"
+                NuGetVersionSortFields.Relevance => NuGetVersionSortFields.Relevance,
+                NuGetVersionSortFields.Downloads => NuGetVersionSortFields.Downloads,
+                NuGetVersionSortFields.Published => NuGetVersionSortFields.Published,
+                NuGetVersionSortFields.Version => NuGetVersionSortFields.Version,
+                _ => NuGetVersionSortFields.Relevance
             };
+        }
+
+        private static bool MatchesFramework(string framework,
+            List<Predicate<string>> includeFrameworkPredicates,
+            List<Predicate<string>> excludeFrameworkPredicates)
+        {
+            var included = includeFrameworkPredicates.Count == 0 || includeFrameworkPredicates.Any(predicate => predicate.Invoke(framework));
+            var excluded = excludeFrameworkPredicates.Any(predicate => predicate.Invoke(framework));
+            return included && !excluded;
+        }
+
+        private static bool MatchesFrameworkFilters(
+            List<string> frameworks,
+            List<Predicate<string>> includeFrameworkPredicates,
+            List<Predicate<string>> excludeFrameworkPredicates)
+        {
+            if (frameworks.Count == 0)
+            {
+                return includeFrameworkPredicates.Count == 0;
+            }
+
+            return frameworks.Any(framework => MatchesFramework(framework, includeFrameworkPredicates, excludeFrameworkPredicates));
         }
     }
 }
