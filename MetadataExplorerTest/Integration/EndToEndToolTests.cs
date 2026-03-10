@@ -7,6 +7,7 @@ using DotNetMetadataMcpServer.Tools;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Client;
 using System.Text.Json;
 
 namespace MetadataExplorerTest.Integration;
@@ -21,7 +22,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
 {
     /// <summary>
     /// Extracts text content from an AIFunction.InvokeAsync result.
-    /// In MCP SDK RC1, different tools may return TextContent or JsonElement.
+    /// Different MCP SDK versions may return TextContent or JsonElement payloads.
     /// </summary>
     private static string ExtractText(object? result)
     {
@@ -115,7 +116,6 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
 
         // Assert
         Assert.That(result, Is.Not.Null);
-
         var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
 
@@ -148,7 +148,6 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
 
         // Assert
         Assert.That(result, Is.Not.Null);
-
         var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
 
