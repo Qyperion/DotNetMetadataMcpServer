@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution files/">
+    <File Path=".github/workflows/publish.yml" />
+    <File Path=".gitignore" />
+    <File Path="readme.md" />
+  </Folder>
+  <Project Path="DotNetMetadataMcpServer/DotNetMetadataMcpServer.csproj" />
+  <Project Path="McpTestProject.Core/McpTestProject.Core.csproj" />
+  <Project Path="MetadataExplorerTest/MetadataExplorerTest.csproj" />
+</Solution>

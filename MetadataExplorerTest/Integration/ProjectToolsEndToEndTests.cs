@@ -23,8 +23,9 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
     /// Absolute path to the McpTestProject.Core project used as test target.
     /// This project must be built before running these tests.
     /// </summary>
-    private const string TestProjectPath =
-        @"C:\Users\Endy\source\repos\McpTestProject\McpTestProject.Core\McpTestProject.Core.csproj";
+    private static string TestProjectPath
+        => Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
+            "../../../../McpTestProject.Core/McpTestProject.Core.csproj"));
 
     private static string LocalServerProjectPath
         => Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
@@ -367,7 +368,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify Product has expected properties
         Assert.That(productType!.Properties, Is.Not.Null.And.Not.Empty,
             "Product type should have properties");
-        Assert.That(productType!.Properties!.Any(p => p.Name.Contains("Id", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Id property");
+        Assert.That(productType.Properties!.Any(p => p.Name.Contains("Id", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Id property");
         Assert.That(productType.Properties!.Any(p => p.Name.Contains("Name", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Name property");
         Assert.That(productType.Properties!.Any(p => p.Name.Contains("Price", StringComparison.OrdinalIgnoreCase)), Is.True, "Product should have Price property");
     }
@@ -435,7 +436,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify methods
         Assert.That(productService!.Methods, Is.Not.Null.And.Not.Empty,
             "ProductService should have methods");
-        Assert.That(productService!.Methods!.Any(m => m.Name.Contains("GetById", StringComparison.OrdinalIgnoreCase)),
+        Assert.That(productService.Methods!.Any(m => m.Name.Contains("GetById", StringComparison.OrdinalIgnoreCase)),
             Is.True, "ProductService should have GetById method");
         Assert.That(productService.Methods!.Any(m => m.Name.Contains("GetAll", StringComparison.OrdinalIgnoreCase)),
             Is.True, "ProductService should have GetAll method");
@@ -471,7 +472,7 @@ public class ProjectToolsEndToEndTests : McpServerIntegrationTestBase
         // Verify events
         Assert.That(productService!.Events, Is.Not.Null.And.Not.Empty,
             "ProductService should have events");
-        Assert.That(productService!.Events!.Any(e => e.Name.Contains("ProductCreated", StringComparison.OrdinalIgnoreCase)),
+        Assert.That(productService.Events!.Any(e => e.Name.Contains("ProductCreated", StringComparison.OrdinalIgnoreCase)),
             Is.True, "ProductService should have ProductCreated event");
     }
 
