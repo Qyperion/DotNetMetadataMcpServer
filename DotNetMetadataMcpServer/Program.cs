@@ -1,8 +1,9 @@
-using System.Reflection;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Services;
 using DotNetMetadataMcpServer.Tools;
+using Microsoft.Build.Locator;
 using Serilog;
+using System.Reflection;
 
 namespace DotNetMetadataMcpServer;
 
@@ -21,30 +22,35 @@ public class Program
         {
             Console.WriteLine("The --homeEnvVariable argument with a value is required");
             return 1;
-        } 
-        
+        }
+
+        // Register MSBuild defaults as early as possible so that MSBuild-shipped assemblies (notably NuGet.Frameworks, required by NuGet.Protocol at runtime) can be resolved even when no MSBuild-based tool is invoked.
+        // NuGet.Frameworks is intentionally excluded from app output (MSBL001) to avoid conflicts with the MSBuild-provided version.
+        if (!MSBuildLocator.IsRegistered)
+            MSBuildLocator.RegisterDefaults();
+
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .Build();
-        
+
         var homeEnvVariable = args[1];
         Environment.SetEnvironmentVariable("HOME", homeEnvVariable);
-        
+
         var logger = new LoggerConfiguration()
             .ReadFrom.Configuration(configuration)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("RunId", Guid.NewGuid())
             .CreateLogger();
-        
-        Log.Logger = logger; 
-        
+
+        Log.Logger = logger;
+
         try
         {
             logger.Information("Starting the server");
-            
+
             var builder = Host.CreateApplicationBuilder(args);
-            
+
             // Configure logging
             builder.Logging.ClearProviders();
             builder.Logging.AddSerilog(logger);
@@ -52,7 +58,7 @@ public class Program
             {
                 options.LogToStandardErrorThreshold = LogLevel.Trace;
             });
-            
+
             // Configure MCP server
             builder.Services.AddMcpServer(options =>
             {
@@ -70,10 +76,10 @@ public class Program
             .WithTools<InheritanceTools>()
             .WithTools<DependencyGraphTools>()
             .WithTools<NuGetTools>();
-            
+
             // Register configuration
             builder.Services.Configure<ToolsConfiguration>(configuration.GetSection(ToolsConfiguration.SectionName));
-            
+
             // Register project metadata cache as singleton (shared across all scoped services)
             builder.Services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
             // Register services as scoped (per request)
@@ -87,7 +93,7 @@ public class Program
             builder.Services.AddScoped<InheritanceToolService>();
             builder.Services.AddScoped<DependencyGraphToolService>();
             builder.Services.AddScoped<NuGetToolService>();
-            
+
             var host = builder.Build();
             await host.RunAsync();
 
@@ -97,7 +103,7 @@ public class Program
         {
             logger.Error(ex, "An error occurred while running the server");
             Console.WriteLine(ex);
-            
+
             return 1;
         }
         finally
