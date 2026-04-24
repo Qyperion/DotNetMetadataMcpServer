@@ -8,7 +8,6 @@ using System.Reflection;
 namespace DotNetMetadataMcpServer;
 
 // ReSharper disable once UnusedType.Global
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class Program
 {
     /// <summary>
