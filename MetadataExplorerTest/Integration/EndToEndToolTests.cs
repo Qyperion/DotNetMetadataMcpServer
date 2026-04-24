@@ -1,11 +1,13 @@
 using DotNetMetadataMcpServer;
 using DotNetMetadataMcpServer.Configuration;
 using DotNetMetadataMcpServer.Models;
+using DotNetMetadataMcpServer.Models.Base;
 using DotNetMetadataMcpServer.Services;
 using DotNetMetadataMcpServer.Tools;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Client;
 using System.Text.Json;
 
 namespace MetadataExplorerTest.Integration;
@@ -18,6 +20,22 @@ namespace MetadataExplorerTest.Integration;
 [NonParallelizable] // MCP client with pipe streams does not support concurrent reads/writes
 public class EndToEndToolTests : McpServerIntegrationTestBase
 {
+    /// <summary>
+    /// Extracts text content from an AIFunction.InvokeAsync result.
+    /// Different MCP SDK versions may return TextContent or JsonElement payloads.
+    /// </summary>
+    private static string ExtractText(object? result)
+    {
+        return result switch
+        {
+            TextContent tc => tc.Text ?? throw new InvalidOperationException("TextContent.Text is null"),
+            JsonElement { ValueKind: JsonValueKind.String } je => je.GetString()!,
+            JsonElement je when je.TryGetProperty("content", out var content) =>
+                content[0].GetProperty("text").GetString()!,
+            JsonElement je => je.GetRawText(),
+            _ => throw new InvalidOperationException($"Unexpected result type: {result?.GetType()}")
+        };
+    }
     protected override void ConfigureServices(ServiceCollection services, IMcpServerBuilder mcpServerBuilder)
     {
         // Configure all MCP tools
@@ -25,6 +43,9 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             .WithTools<AssemblyTools>()
             .WithTools<NamespaceTools>()
             .WithTools<TypeTools>()
+            .WithTools<TypeSearchTools>()
+            .WithTools<InheritanceTools>()
+            .WithTools<DependencyGraphTools>()
             .WithTools<NuGetTools>();
 
         // Configure settings
@@ -32,7 +53,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Tools:DefaultPageSize"] = "20",
-                ["Tools:IntendResponse"] = "true" // Use indented JSON for easier debugging
+                ["Tools:IndentResponse"] = "true" // Use indented JSON for easier debugging
             })
             .Build();
 
@@ -45,7 +66,11 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         services.AddScoped<AssemblyToolService>();
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
+        services.AddScoped<TypeSearchToolService>();
+        services.AddScoped<InheritanceToolService>();
+        services.AddScoped<DependencyGraphToolService>();
         services.AddScoped<NuGetToolService>();
+        services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
     }
 
     [Test]
@@ -59,11 +84,14 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
 
         // Assert
         Assert.That(tools, Is.Not.Empty);
-        
+
         var toolNames = tools.Select(t => t.Name).ToList();
         Assert.That(toolNames, Does.Contain("ReferencedAssembliesExplorer"));
         Assert.That(toolNames, Does.Contain("NamespacesExplorer"));
         Assert.That(toolNames, Does.Contain("NamespaceTypes"));
+        Assert.That(toolNames, Does.Contain("TypeSearch"));
+        Assert.That(toolNames, Does.Contain("InheritanceHierarchy"));
+        Assert.That(toolNames, Does.Contain("DependencyGraphExplorer"));
         Assert.That(toolNames, Does.Contain("NuGetPackageSearch"));
         Assert.That(toolNames, Does.Contain("NuGetPackageVersions"));
     }
@@ -83,23 +111,19 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             ["includePrerelease"] = false,
             ["pageNumber"] = 1
         };
-        
+
         var result = await searchTool.InvokeAsync(arguments);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        
-        // The result is a JsonElement containing CallToolResult with content array
-        var jsonResult = (JsonElement)result;
-        var contentArray = jsonResult.GetProperty("content");
-        var textContent = contentArray[0].GetProperty("text").GetString();
+        var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
-        
-        var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(textContent!);
+
+        var response = JsonSerializer.Deserialize<NuGetPackageSearchResponse>(textContent);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.Packages, Is.Not.Empty);
-        
-        var hasNewtonsoftJson = response.Packages.Any(p => 
+
+        var hasNewtonsoftJson = response.Packages.Any(p =>
             p.Id.Contains("Newtonsoft.Json", StringComparison.OrdinalIgnoreCase));
         Assert.That(hasNewtonsoftJson, Is.True, "Expected to find Newtonsoft.Json in search results");
     }
@@ -119,19 +143,15 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             ["includePrerelease"] = false,
             ["pageNumber"] = 1
         };
-        
+
         var result = await versionsTool.InvokeAsync(arguments);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        
-        // The result is a JsonElement containing CallToolResult with content array
-        var jsonResult = (JsonElement)result;
-        var contentArray = jsonResult.GetProperty("content");
-        var textContent = contentArray[0].GetProperty("text").GetString();
+        var textContent = ExtractText(result);
         Assert.That(textContent, Is.Not.Null.And.Not.Empty);
-        
-        var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(textContent!);
+
+        var response = JsonSerializer.Deserialize<NuGetPackageVersionsResponse>(textContent);
         Assert.That(response, Is.Not.Null);
         Assert.That(response!.PackageId, Is.EqualTo("Newtonsoft.Json"));
         Assert.That(response.Versions, Is.Not.Empty);
@@ -149,11 +169,11 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
         // Assert
         foreach (var tool in tools)
         {
-            Assert.That(tool.Name, Is.Not.Null.And.Not.Empty, 
+            Assert.That(tool.Name, Is.Not.Null.And.Not.Empty,
                 "Tool should have a name");
-            Assert.That(tool.Description, Is.Not.Null.And.Not.Empty, 
+            Assert.That(tool.Description, Is.Not.Null.And.Not.Empty,
                 $"Tool {tool.Name} should have a description");
-            
+
             // Verify the tool has JSON schema
             Assert.That(tool.JsonSchema.ValueKind, Is.Not.EqualTo(JsonValueKind.Undefined),
                 $"Tool {tool.Name} should have a JSON schema defined");
@@ -178,21 +198,19 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
                 ["includePrerelease"] = false,
                 ["pageNumber"] = 1
             };
-            
+
             var result = await searchTool.InvokeAsync(arguments);
             results.Add(result);
         }
 
         // Assert - All invocations should succeed
         Assert.That(results, Has.Count.EqualTo(3));
-        
+
         foreach (var result in results)
         {
             Assert.That(result, Is.Not.Null);
-            // Verify we can extract content from the result
-            var jsonResult = (JsonElement)result!;
-            var contentArray = jsonResult.GetProperty("content");
-            Assert.That(contentArray.GetArrayLength(), Is.GreaterThan(0));
+            var textContent = ExtractText(result);
+            Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         }
     }
 
@@ -211,32 +229,14 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
             ["pageNumber"] = 1
         };
 
-        // The tool should either throw or return a result with isError=true
-        // Let's check what actually happens
-        try
-        {
-            var result = await assemblyTool.InvokeAsync(arguments);
-            
-            // If we get a result, check if it has isError flag
-            var jsonResult = (JsonElement)(result ?? throw new InvalidOperationException("Result is null"));
-            if (jsonResult.TryGetProperty("isError", out var isErrorProp))
-            {
-                Assert.That(isErrorProp.GetBoolean(), Is.True, 
-                    "Expected isError to be true for invalid project path");
-            }
-            // If there's no isError property, the result should contain error information in content
-            else if (jsonResult.TryGetProperty("content", out var contentArray))
-            {
-                var textContent = contentArray[0].GetProperty("text").GetString();
-                Assert.That(textContent, Does.Contain("error").IgnoreCase.Or.Contains("exception").IgnoreCase,
-                    "Expected error message in content for invalid project path");
-            }
-        }
-        catch (Exception ex)
-        {
-            // If it throws, that's also acceptable behavior
-            Assert.Pass($"Tool threw exception as expected: {ex.GetType().Name}");
-        }
+        var result = await assemblyTool.InvokeAsync(arguments);
+
+        var text = ExtractText(result ?? throw new InvalidOperationException("Result is null"));
+        var error = JsonSerializer.Deserialize<ToolErrorResponse>(text);
+        Assert.That(error, Is.Not.Null);
+        Assert.That(error!.IsError, Is.True);
+        Assert.That(error.ErrorCode, Is.Not.Null.And.Not.Empty);
+        Assert.That(error.ToolName, Is.EqualTo("ReferencedAssembliesExplorer"));
     }
 
     [Test]
@@ -256,7 +256,7 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
                 ["includePrerelease"] = false,
                 ["pageNumber"] = 1
             };
-            
+
             return await searchTool.InvokeAsync(arguments);
         });
 
@@ -264,15 +264,12 @@ public class EndToEndToolTests : McpServerIntegrationTestBase
 
         // Assert - All concurrent invocations should succeed
         Assert.That(results, Has.Length.EqualTo(5));
-        
+
         foreach (var result in results)
         {
             Assert.That(result, Is.Not.Null);
-            // Verify we can extract content from the result
-            var jsonResult = (JsonElement)result!;
-            var contentArray = jsonResult.GetProperty("content");
-            Assert.That(contentArray.GetArrayLength(), Is.GreaterThan(0));
+            var textContent = ExtractText(result);
+            Assert.That(textContent, Is.Not.Null.And.Not.Empty);
         }
     }
 }
-

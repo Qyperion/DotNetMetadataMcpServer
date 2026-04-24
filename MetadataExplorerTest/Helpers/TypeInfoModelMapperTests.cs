@@ -1,5 +1,6 @@
 using DotNetMetadataMcpServer;
 using DotNetMetadataMcpServer.Helpers;
+using DotNetMetadataMcpServer.Models;
 
 namespace MetadataExplorerTest.Helpers;
 
@@ -13,7 +14,7 @@ public class TypeInfoModelMapperTests
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Implements = new() { "IDisposable", "IEquatable<TestClass>" },
+            Implements = ["IDisposable", "IEquatable<TestClass>"],
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
@@ -30,7 +31,7 @@ public class TypeInfoModelMapperTests
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Implements = new() { "IDisposable", "IEquatable<TestClass>" }
+            Implements = ["IDisposable", "IEquatable<TestClass>"]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
@@ -39,26 +40,38 @@ public class TypeInfoModelMapperTests
     }
 
     [Test]
-    public void ToSimpleTypeInfo_IncludesOverrideInMethodFormat()
+    public void ToSimpleTypeInfo_IncludesOverrideInMethod()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "ToString",
                     ReturnType = "string",
                     IsOverride = true,
-                    Parameters = new()
+                    Parameters = []
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EqualTo(new[] { "override string ToString()" }));
+        Assert.That(result.Methods, Has.Count.EqualTo(1));
+        var method = result.Methods![0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(method.Name, Is.EqualTo("ToString"));
+            Assert.That(method.ReturnType, Is.EqualTo("string"));
+            Assert.That(method.IsOverride, Is.True);
+            Assert.That(method.IsStatic, Is.False);
+            Assert.That(method.IsAbstract, Is.False);
+            Assert.That(method.IsVirtual, Is.False);
+            Assert.That(method.IsSealed, Is.False);
+            Assert.That(method.Parameters, Is.Empty);
+        });
     }
 
     [Test]
@@ -67,62 +80,79 @@ public class TypeInfoModelMapperTests
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Constructors = new()
-            {
-                new()
+            Constructors =
+            [
+                new ConstructorInfoModel
                 {
-                    Parameters = new()
-                    {
-                        new() { Name = "value", ParameterType = "string" },
-                        new() { Name = "count", ParameterType = "int" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "value", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "count", ParameterType = "int" }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Constructors, Is.Not.Empty);
-        Assert.That(result.Constructors, Has.All.Matches<string>(s => s.StartsWith("(") && s.EndsWith(")")));
-        Assert.That(result.Constructors, Is.EqualTo(new[] { "(string value, int count)" }));
+        Assert.That(result.Constructors, Has.Count.EqualTo(1));
+        var ctor = result.Constructors![0];
+        Assert.That(ctor.Parameters, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(ctor.Parameters[0].Name, Is.EqualTo("value"));
+            Assert.That(ctor.Parameters[0].Type, Is.EqualTo("string"));
+            Assert.That(ctor.Parameters[1].Name, Is.EqualTo("count"));
+            Assert.That(ctor.Parameters[1].Type, Is.EqualTo("int"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMethodsWithModifiers()
+    public void ToSimpleTypeInfo_MapsMethodsWithModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "Calculate",
                     ReturnType = "double",
                     IsStatic = true,
-                    Parameters = new()
-                    {
-                        new() { Name = "x", ParameterType = "double" },
-                        new() { Name = "y", ParameterType = "double" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" },
+                        new ParameterInfoModel { Name = "y", ParameterType = "double" }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EqualTo(new[] { "static double Calculate(double x, double y)" }));
+        Assert.That(result.Methods, Has.Count.EqualTo(1));
+        var method = result.Methods![0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(method.Name, Is.EqualTo("Calculate"));
+            Assert.That(method.ReturnType, Is.EqualTo("double"));
+            Assert.That(method.IsStatic, Is.True);
+            Assert.That(method.Parameters, Has.Count.EqualTo(2));
+            Assert.That(method.Parameters[0].Name, Is.EqualTo("x"));
+            Assert.That(method.Parameters[1].Name, Is.EqualTo("y"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsPropertiesWithAccessors()
+    public void ToSimpleTypeInfo_MapsPropertiesWithAccessors()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "Count",
                     PropertyType = "int",
@@ -130,110 +160,134 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = false,
                     IsStatic = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EqualTo(new[] { "static int Count { get; }" }));
+        Assert.That(result.Properties, Has.Count.EqualTo(1));
+        var prop = result.Properties![0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(prop.Name, Is.EqualTo("Count"));
+            Assert.That(prop.Type, Is.EqualTo("int"));
+            Assert.That(prop.HasGetter, Is.True);
+            Assert.That(prop.HasSetter, Is.False);
+            Assert.That(prop.IsStatic, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMethodWithAllModifiers()
+    public void ToSimpleTypeInfo_MapsMethodWithAllModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "Calculate",
                     ReturnType = "double",
                     IsVirtual = true,
-                    Parameters = new() { new() { Name = "x", ParameterType = "double" } }
+                    Parameters = [new ParameterInfoModel { Name = "x", ParameterType = "double" }]
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Calculate",
                     ReturnType = "double",
                     IsAbstract = true,
-                    Parameters = new() { new() { Name = "y", ParameterType = "double" } }
+                    Parameters = [new ParameterInfoModel { Name = "y", ParameterType = "double" }]
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Calculate",
                     ReturnType = "double",
                     IsOverride = true,
                     IsSealed = true,
-                    Parameters = new() { new() { Name = "z", ParameterType = "double" } }
+                    Parameters = [new ParameterInfoModel { Name = "z", ParameterType = "double" }]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.Not.Empty);
-        Assert.That(result.Methods, Has.Some.Contains("virtual"));
-        Assert.That(result.Methods, Has.Some.Contains("abstract"));
-        Assert.That(result.Methods, Has.Some.Contains("sealed override"));
-        Assert.That(result.Methods, Is.EquivalentTo(new[] 
-        { 
-            "virtual double Calculate(double x)",
-            "abstract double Calculate(double y)",
-            "sealed override double Calculate(double z)"  // Updated order to match C# convention
-        }));
+        Assert.That(result.Methods, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Methods![0].IsVirtual, Is.True);
+            Assert.That(result.Methods[0].Parameters[0].Name, Is.EqualTo("x"));
+
+            Assert.That(result.Methods[1].IsAbstract, Is.True);
+            Assert.That(result.Methods[1].Parameters[0].Name, Is.EqualTo("y"));
+
+            Assert.That(result.Methods[2].IsOverride, Is.True);
+            Assert.That(result.Methods[2].IsSealed, Is.True);
+            Assert.That(result.Methods[2].Parameters[0].Name, Is.EqualTo("z"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsFieldWithAllModifiers()
+    public void ToSimpleTypeInfo_MapsFieldWithAllModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Fields = new()
-            {
-                new()
+            Fields =
+            [
+                new FieldInfoModel
                 {
                     Name = "DefaultValue",
                     FieldType = "double",
                     IsConstant = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "_value",
                     FieldType = "double",
                     IsReadOnly = true,
                     IsStatic = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "Required",
                     FieldType = "string",
                     IsRequired = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Fields, Is.EquivalentTo(new[] 
-        { 
-            "const double DefaultValue",
-            "static readonly double _value",
-            "required string Required"
-        }));
+        Assert.That(result.Fields, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Fields![0].Name, Is.EqualTo("DefaultValue"));
+            Assert.That(result.Fields[0].Type, Is.EqualTo("double"));
+            Assert.That(result.Fields[0].IsConstant, Is.True);
+
+            Assert.That(result.Fields[1].Name, Is.EqualTo("_value"));
+            Assert.That(result.Fields[1].IsReadOnly, Is.True);
+            Assert.That(result.Fields[1].IsStatic, Is.True);
+
+            Assert.That(result.Fields[2].Name, Is.EqualTo("Required"));
+            Assert.That(result.Fields[2].IsRequired, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsPropertyWithAllModifiers()
+    public void ToSimpleTypeInfo_MapsPropertyWithAllModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "StaticProperty",
                     PropertyType = "int",
@@ -241,7 +295,8 @@ public class TypeInfoModelMapperTests
                     HasPublicGetter = true,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "VirtualProperty",
                     PropertyType = "string",
@@ -249,14 +304,16 @@ public class TypeInfoModelMapperTests
                     HasPublicGetter = true,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "AbstractProperty",
                     PropertyType = "bool",
                     IsAbstract = true,
                     HasPublicGetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "OverrideProperty",
                     PropertyType = "double",
@@ -265,7 +322,8 @@ public class TypeInfoModelMapperTests
                     HasPublicGetter = true,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "InitProperty",
                     PropertyType = "string",
@@ -273,44 +331,57 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = true,
                     IsInit = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(5));
+        Assert.Multiple(() =>
         {
-            "static int StaticProperty { get; set; }",
-            "virtual string VirtualProperty { get; set; }",
-            "abstract bool AbstractProperty { get; }",
-            "sealed override double OverrideProperty { get; set; }",
-            "string InitProperty { get; init; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("StaticProperty"));
+            Assert.That(result.Properties[0].IsStatic, Is.True);
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.True);
+
+            Assert.That(result.Properties[1].IsVirtual, Is.True);
+
+            Assert.That(result.Properties[2].IsAbstract, Is.True);
+            Assert.That(result.Properties[2].HasGetter, Is.True);
+            Assert.That(result.Properties[2].HasSetter, Is.False);
+
+            Assert.That(result.Properties[3].IsOverride, Is.True);
+            Assert.That(result.Properties[3].IsSealed, Is.True);
+
+            Assert.That(result.Properties[4].IsInit, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsPropertyWithDifferentAccessors()
+    public void ToSimpleTypeInfo_MapsPropertyWithDifferentAccessors()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "ReadOnly",
                     PropertyType = "string",
                     HasPublicGetter = true,
                     HasPublicSetter = false
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "WriteOnly",
                     PropertyType = "int",
                     HasPublicGetter = false,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "InitOnly",
                     PropertyType = "string",
@@ -318,116 +389,139 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = true,
                     IsInit = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "string ReadOnly { get; }",
-            "int WriteOnly { set; }",
-            "string InitOnly { get; init; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("ReadOnly"));
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.False);
+
+            Assert.That(result.Properties[1].Name, Is.EqualTo("WriteOnly"));
+            Assert.That(result.Properties[1].HasGetter, Is.False);
+            Assert.That(result.Properties[1].HasSetter, Is.True);
+
+            Assert.That(result.Properties[2].Name, Is.EqualTo("InitOnly"));
+            Assert.That(result.Properties[2].HasGetter, Is.True);
+            Assert.That(result.Properties[2].HasSetter, Is.True);
+            Assert.That(result.Properties[2].IsInit, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsConstructorsWithDifferentParameters()
+    public void ToSimpleTypeInfo_MapsConstructorsWithDifferentParameters()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Constructors = new()
-            {
-                new()
+            Constructors =
+            [
+                new ConstructorInfoModel
                 {
-                    Parameters = new()
+                    Parameters = []
                 },
-                new()
+
+                new ConstructorInfoModel
                 {
-                    Parameters = new()
-                    {
-                        new() { Name = "value", ParameterType = "string" }
-                    }
+                    Parameters = [new ParameterInfoModel { Name = "value", ParameterType = "string" }]
                 },
-                new()
+
+                new ConstructorInfoModel
                 {
-                    Parameters = new()
-                    {
-                        new() { Name = "value", ParameterType = "string" },
-                        new() { Name = "count", ParameterType = "int" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "value", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "count", ParameterType = "int" }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Constructors, Is.EquivalentTo(new[]
+        Assert.That(result.Constructors, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "()",
-            "(string value)",
-            "(string value, int count)"
-        }));
+            Assert.That(result.Constructors![0].Parameters, Is.Empty);
+            Assert.That(result.Constructors[1].Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Constructors[1].Parameters[0].Name, Is.EqualTo("value"));
+            Assert.That(result.Constructors[2].Parameters, Has.Count.EqualTo(2));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMethodsWithDifferentParametersAndModifiers()
+    public void ToSimpleTypeInfo_MapsMethodsWithDifferentParametersAndModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "DoSomething",
                     ReturnType = "void",
-                    Parameters = new()
+                    Parameters = []
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Calculate",
                     ReturnType = "double",
                     IsStatic = true,
-                    Parameters = new()
-                    {
-                        new() { Name = "x", ParameterType = "double" },
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" }
+                    ]
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Process",
                     ReturnType = "Task<string>",
                     IsVirtual = true,
-                    Parameters = new()
-                    {
-                        new() { Name = "input", ParameterType = "string" },
-                        new() { Name = "count", ParameterType = "int" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "input", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "count", ParameterType = "int" }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EquivalentTo(new[]
+        Assert.That(result.Methods, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "void DoSomething()",
-            "static double Calculate(double x)",
-            "virtual Task<string> Process(string input, int count)"
-        }));
+            Assert.That(result.Methods![0].Name, Is.EqualTo("DoSomething"));
+            Assert.That(result.Methods[0].ReturnType, Is.EqualTo("void"));
+            Assert.That(result.Methods[0].Parameters, Is.Empty);
+
+            Assert.That(result.Methods[1].Name, Is.EqualTo("Calculate"));
+            Assert.That(result.Methods[1].IsStatic, Is.True);
+            Assert.That(result.Methods[1].Parameters, Has.Count.EqualTo(1));
+
+            Assert.That(result.Methods[2].Name, Is.EqualTo("Process"));
+            Assert.That(result.Methods[2].ReturnType, Is.EqualTo("Task<string>"));
+            Assert.That(result.Methods[2].IsVirtual, Is.True);
+            Assert.That(result.Methods[2].Parameters, Has.Count.EqualTo(2));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMixedAccessorProperties()
+    public void ToSimpleTypeInfo_MapsMixedAccessorProperties()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "ReadOnlyRequired",
                     PropertyType = "string",
@@ -435,7 +529,8 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = false,
                     IsRequired = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "VirtualInitOnly",
                     PropertyType = "string",
@@ -444,7 +539,8 @@ public class TypeInfoModelMapperTests
                     IsVirtual = true,
                     IsInit = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "AbstractGetter",
                     PropertyType = "int",
@@ -452,105 +548,138 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = false,
                     IsAbstract = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "required string ReadOnlyRequired { get; }",
-            "virtual string VirtualInitOnly { get; init; }",
-            "abstract int AbstractGetter { get; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("ReadOnlyRequired"));
+            Assert.That(result.Properties[0].IsRequired, Is.True);
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.False);
+
+            Assert.That(result.Properties[1].Name, Is.EqualTo("VirtualInitOnly"));
+            Assert.That(result.Properties[1].IsVirtual, Is.True);
+            Assert.That(result.Properties[1].IsInit, Is.True);
+
+            Assert.That(result.Properties[2].Name, Is.EqualTo("AbstractGetter"));
+            Assert.That(result.Properties[2].IsAbstract, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsOrderOfModifiers()
+    public void ToSimpleTypeInfo_MapsModifierPriority()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
-                    Name = "StaticVirtual", // static wins over virtual
+                    Name = "StaticVirtual",
                     ReturnType = "void",
                     IsStatic = true,
                     IsVirtual = true,
-                    Parameters = new()
+                    Parameters = []
                 },
-                new()
+
+                new MethodInfoModel
                 {
-                    Name = "AbstractVirtual", // abstract wins over virtual
+                    Name = "AbstractVirtual",
                     ReturnType = "void",
                     IsAbstract = true,
                     IsVirtual = true,
-                    Parameters = new()
+                    Parameters = []
                 },
-                new()
+
+                new MethodInfoModel
                 {
-                    Name = "SealedOverrideVirtual", // sealed override wins over virtual
+                    Name = "SealedOverrideVirtual",
                     ReturnType = "void",
                     IsSealed = true,
                     IsOverride = true,
                     IsVirtual = true,
-                    Parameters = new()
+                    Parameters = []
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EquivalentTo(new[]
+        Assert.That(result.Methods, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "static void StaticVirtual()",
-            "abstract void AbstractVirtual()",
-            "sealed override void SealedOverrideVirtual()"
-        }));
+            // All modifier flags are preserved as-is (no priority filtering in structured model)
+            Assert.That(result.Methods![0].Name, Is.EqualTo("StaticVirtual"));
+            Assert.That(result.Methods[0].IsStatic, Is.True);
+            Assert.That(result.Methods[0].IsVirtual, Is.True);
+
+            Assert.That(result.Methods[1].Name, Is.EqualTo("AbstractVirtual"));
+            Assert.That(result.Methods[1].IsAbstract, Is.True);
+            Assert.That(result.Methods[1].IsVirtual, Is.True);
+
+            Assert.That(result.Methods[2].Name, Is.EqualTo("SealedOverrideVirtual"));
+            Assert.That(result.Methods[2].IsSealed, Is.True);
+            Assert.That(result.Methods[2].IsOverride, Is.True);
+            Assert.That(result.Methods[2].IsVirtual, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsFieldModifierCombinations()
+    public void ToSimpleTypeInfo_MapsFieldModifierCombinations()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Fields = new()
-            {
-                new()
+            Fields =
+            [
+                new FieldInfoModel
                 {
                     Name = "ReadOnlyStatic",
                     FieldType = "int",
                     IsStatic = true,
                     IsReadOnly = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "RequiredReadOnly",
                     FieldType = "string",
                     IsRequired = true,
                     IsReadOnly = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
-                    Name = "StaticConst", // const implies static
+                    Name = "StaticConst",
                     FieldType = "double",
                     IsStatic = true,
                     IsConstant = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Fields, Is.EquivalentTo(new[]
+        Assert.That(result.Fields, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "static readonly int ReadOnlyStatic",
-            "required readonly string RequiredReadOnly",
-            "const double StaticConst"
-        }));
+            Assert.That(result.Fields![0].Name, Is.EqualTo("ReadOnlyStatic"));
+            Assert.That(result.Fields[0].IsStatic, Is.True);
+            Assert.That(result.Fields[0].IsReadOnly, Is.True);
+
+            Assert.That(result.Fields[1].Name, Is.EqualTo("RequiredReadOnly"));
+            Assert.That(result.Fields[1].IsRequired, Is.True);
+            Assert.That(result.Fields[1].IsReadOnly, Is.True);
+
+            Assert.That(result.Fields[2].Name, Is.EqualTo("StaticConst"));
+            Assert.That(result.Fields[2].IsStatic, Is.True);
+            Assert.That(result.Fields[2].IsConstant, Is.True);
+        });
     }
 
     [Test]
@@ -559,12 +688,12 @@ public class TypeInfoModelMapperTests
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Implements = new(),
-            Constructors = new(),
-            Methods = new(),
-            Properties = new(),
-            Fields = new(),
-            Events = new()
+            Implements = [],
+            Constructors = [],
+            Methods = [],
+            Properties = [],
+            Fields = [],
+            Events = []
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
@@ -581,48 +710,57 @@ public class TypeInfoModelMapperTests
     }
 
     [Test]
-    public void ToSimpleTypeInfo_HandlesGenericTypes()
+    public void ToSimpleTypeInfo_MapsGenericTypes()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "Items",
                     PropertyType = "List<string>",
                     HasPublicGetter = true,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "Mapping",
                     PropertyType = "Dictionary<string, List<int>>",
                     HasPublicGetter = true,
                     HasPublicSetter = false
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
         {
-            "List<string> Items { get; set; }",
-            "Dictionary<string, List<int>> Mapping { get; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("Items"));
+            Assert.That(result.Properties[0].Type, Is.EqualTo("List<string>"));
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.True);
+
+            Assert.That(result.Properties[1].Name, Is.EqualTo("Mapping"));
+            Assert.That(result.Properties[1].Type, Is.EqualTo("Dictionary<string, List<int>>"));
+            Assert.That(result.Properties[1].HasGetter, Is.True);
+            Assert.That(result.Properties[1].HasSetter, Is.False);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsOverridePropertyWithDifferentAccessors()
+    public void ToSimpleTypeInfo_MapsOverridePropertyWithDifferentAccessors()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "OverrideReadOnly",
                     PropertyType = "string",
@@ -630,7 +768,8 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = false,
                     IsOverride = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "SealedOverrideWriteOnly",
                     PropertyType = "int",
@@ -639,27 +778,36 @@ public class TypeInfoModelMapperTests
                     IsOverride = true,
                     IsSealed = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
         {
-            "override string OverrideReadOnly { get; }",
-            "sealed override int SealedOverrideWriteOnly { set; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("OverrideReadOnly"));
+            Assert.That(result.Properties[0].IsOverride, Is.True);
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.False);
+
+            Assert.That(result.Properties[1].Name, Is.EqualTo("SealedOverrideWriteOnly"));
+            Assert.That(result.Properties[1].IsOverride, Is.True);
+            Assert.That(result.Properties[1].IsSealed, Is.True);
+            Assert.That(result.Properties[1].HasGetter, Is.False);
+            Assert.That(result.Properties[1].HasSetter, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsRequiredPropertiesWithDifferentModifiers()
+    public void ToSimpleTypeInfo_MapsRequiredPropertiesWithDifferentModifiers()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "RequiredStatic",
                     PropertyType = "string",
@@ -668,7 +816,8 @@ public class TypeInfoModelMapperTests
                     HasPublicGetter = true,
                     HasPublicSetter = true
                 },
-                new()
+
+                new PropertyInfoModel
                 {
                     Name = "RequiredInit",
                     PropertyType = "int",
@@ -677,264 +826,614 @@ public class TypeInfoModelMapperTests
                     HasPublicSetter = true,
                     IsInit = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EquivalentTo(new[]
+        Assert.That(result.Properties, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
         {
-            "static required string RequiredStatic { get; set; }",
-            "required int RequiredInit { get; init; }"
-        }));
+            Assert.That(result.Properties![0].Name, Is.EqualTo("RequiredStatic"));
+            Assert.That(result.Properties[0].IsRequired, Is.True);
+            Assert.That(result.Properties[0].IsStatic, Is.True);
+
+            Assert.That(result.Properties[1].Name, Is.EqualTo("RequiredInit"));
+            Assert.That(result.Properties[1].IsRequired, Is.True);
+            Assert.That(result.Properties[1].IsInit, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsComplexGenericMethods()
+    public void ToSimpleTypeInfo_MapsComplexGenericMethods()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "Convert",
                     ReturnType = "IDictionary<TKey, IList<TValue>>",
-                    Parameters = new()
-                    {
-                        new() { Name = "source", ParameterType = "IEnumerable<KeyValuePair<TKey, TValue>>" },
-                        new() { Name = "selector", ParameterType = "Func<TValue, TResult>" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "source", ParameterType = "IEnumerable<KeyValuePair<TKey, TValue>>" },
+                        new ParameterInfoModel { Name = "selector", ParameterType = "Func<TValue, TResult>" }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EqualTo(new[]
+        Assert.That(result.Methods, Has.Count.EqualTo(1));
+        var method = result.Methods![0];
+        Assert.Multiple(() =>
         {
-            "IDictionary<TKey, IList<TValue>> Convert(IEnumerable<KeyValuePair<TKey, TValue>> source, Func<TValue, TResult> selector)"
-        }));
+            Assert.That(method.Name, Is.EqualTo("Convert"));
+            Assert.That(method.ReturnType, Is.EqualTo("IDictionary<TKey, IList<TValue>>"));
+            Assert.That(method.Parameters[0].Name, Is.EqualTo("source"));
+            Assert.That(method.Parameters[0].Type, Is.EqualTo("IEnumerable<KeyValuePair<TKey, TValue>>"));
+            Assert.That(method.Parameters[1].Name, Is.EqualTo("selector"));
+            Assert.That(method.Parameters[1].Type, Is.EqualTo("Func<TValue, TResult>"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsNestedTypeNames()
+    public void ToSimpleTypeInfo_MapsNestedTypeNames()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Properties = new()
-            {
-                new()
+            Properties =
+            [
+                new PropertyInfoModel
                 {
                     Name = "Configuration",
                     PropertyType = "TestClass.Config",
                     HasPublicGetter = true,
                     HasPublicSetter = false
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Properties, Is.EqualTo(new[] { "TestClass.Config Configuration { get; }" }));
+        Assert.That(result.Properties, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Properties![0].Name, Is.EqualTo("Configuration"));
+            Assert.That(result.Properties[0].Type, Is.EqualTo("TestClass.Config"));
+            Assert.That(result.Properties[0].HasGetter, Is.True);
+            Assert.That(result.Properties[0].HasSetter, Is.False);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsArrayTypes()
+    public void ToSimpleTypeInfo_MapsArrayTypes()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Fields = new()
-            {
-                new()
+            Fields =
+            [
+                new FieldInfoModel
                 {
                     Name = "SingleDimensional",
                     FieldType = "int[]"
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "MultiDimensional",
                     FieldType = "string[,]"
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "Jagged",
                     FieldType = "double[][]"
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Fields, Is.EquivalentTo(new[]
+        Assert.That(result.Fields, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "int[] SingleDimensional",
-            "string[,] MultiDimensional",
-            "double[][] Jagged"
-        }));
+            Assert.That(result.Fields![0].Name, Is.EqualTo("SingleDimensional"));
+            Assert.That(result.Fields[0].Type, Is.EqualTo("int[]"));
+
+            Assert.That(result.Fields[1].Name, Is.EqualTo("MultiDimensional"));
+            Assert.That(result.Fields[1].Type, Is.EqualTo("string[,]"));
+
+            Assert.That(result.Fields[2].Name, Is.EqualTo("Jagged"));
+            Assert.That(result.Fields[2].Type, Is.EqualTo("double[][]"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsStaticConstructor()
+    public void ToSimpleTypeInfo_MapsStaticConstructor()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Constructors = new()
-            {
-                new()
+            Constructors =
+            [
+                new ConstructorInfoModel
                 {
                     Name = ".cctor",
-                    Parameters = new()
+                    Parameters = []
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Constructors, Is.EqualTo(new[] { "()" }));
+        Assert.That(result.Constructors, Has.Count.EqualTo(1));
+        Assert.That(result.Constructors![0].Parameters, Is.Empty);
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsEventWithCustomDelegateType()
+    public void ToSimpleTypeInfo_MapsEventWithCustomDelegateType()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Events = new()
-            {
-                new()
+            Events =
+            [
+                new EventInfoModel
                 {
                     Name = "OnProgress",
                     EventHandlerType = "ProgressEventHandler<T>",
                     IsStatic = false
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Events, Is.EqualTo(new[] { "event ProgressEventHandler<T> OnProgress" }));
+        Assert.That(result.Events, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Events![0].Name, Is.EqualTo("OnProgress"));
+            Assert.That(result.Events[0].HandlerType, Is.EqualTo("ProgressEventHandler<T>"));
+            Assert.That(result.Events[0].IsStatic, Is.False);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsConstFieldsWithPrimitiveTypes()
+    public void ToSimpleTypeInfo_MapsConstFieldsWithPrimitiveTypes()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Fields = new()
-            {
-                new()
+            Fields =
+            [
+                new FieldInfoModel
                 {
                     Name = "MaxRetries",
                     FieldType = "int",
                     IsConstant = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "DefaultName",
                     FieldType = "string",
                     IsConstant = true
                 },
-                new()
+
+                new FieldInfoModel
                 {
                     Name = "EnableFeature",
                     FieldType = "bool",
                     IsConstant = true
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Fields, Is.EquivalentTo(new[]
+        Assert.That(result.Fields, Has.Count.EqualTo(3));
+        Assert.Multiple(() =>
         {
-            "const int MaxRetries",
-            "const string DefaultName",
-            "const bool EnableFeature"
-        }));
+            Assert.That(result.Fields![0].Name, Is.EqualTo("MaxRetries"));
+            Assert.That(result.Fields[0].IsConstant, Is.True);
+
+            Assert.That(result.Fields[1].Name, Is.EqualTo("DefaultName"));
+            Assert.That(result.Fields[1].IsConstant, Is.True);
+
+            Assert.That(result.Fields[2].Name, Is.EqualTo("EnableFeature"));
+            Assert.That(result.Fields[2].IsConstant, Is.True);
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMethodWithRefAndOutParameters()
+    public void ToSimpleTypeInfo_MapsMethodWithRefAndOutParameters()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "TryParse",
                     ReturnType = "bool",
-                    Parameters = new()
-                    {
-                        new() { Name = "input", ParameterType = "string" },
-                        new() { Name = "result", ParameterType = "out int" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "input", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "result", ParameterType = "out int" }
+                    ]
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Modify",
                     ReturnType = "void",
-                    Parameters = new()
-                    {
-                        new() { Name = "value", ParameterType = "ref double" }
-                    }
+                    Parameters = [new ParameterInfoModel { Name = "value", ParameterType = "ref double" }]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EquivalentTo(new[]
+        Assert.That(result.Methods, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
         {
-            "bool TryParse(string input, out int result)",
-            "void Modify(ref double value)"
-        }));
+            Assert.That(result.Methods![0].Name, Is.EqualTo("TryParse"));
+            Assert.That(result.Methods[0].Parameters[0].Type, Is.EqualTo("string"));
+            Assert.That(result.Methods[0].Parameters[1].Type, Is.EqualTo("out int"));
+
+            Assert.That(result.Methods[1].Name, Is.EqualTo("Modify"));
+            Assert.That(result.Methods[1].Parameters[0].Type, Is.EqualTo("ref double"));
+        });
     }
 
     [Test]
-    public void ToSimpleTypeInfo_FormatsMethodWithOptionalAndParamsParameters()
+    public void ToSimpleTypeInfo_MapsMethodWithOptionalAndParamsParameters()
     {
         var model = new TypeInfoModel
         {
             FullName = "TestNamespace.TestClass",
-            Methods = new()
-            {
-                new()
+            Methods =
+            [
+                new MethodInfoModel
                 {
                     Name = "Format",
                     ReturnType = "string",
-                    Parameters = new()
-                    {
-                        new() { Name = "format", ParameterType = "string" },
-                        new() { Name = "args", ParameterType = "params object[]" }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "format", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "args", ParameterType = "params object[]" }
+                    ]
                 },
-                new()
+
+                new MethodInfoModel
                 {
                     Name = "Configure",
                     ReturnType = "void",
-                    Parameters = new()
-                    {
-                        new() { Name = "name", ParameterType = "string" },
-                        new() { Name = "options", ParameterType = "Options", IsOptional = true }
-                    }
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "name", ParameterType = "string" },
+                        new ParameterInfoModel { Name = "options", ParameterType = "Options", IsOptional = true }
+                    ]
                 }
-            }
+            ]
         };
 
         var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
 
-        Assert.That(result.Methods, Is.EquivalentTo(new[]
+        Assert.That(result.Methods, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
         {
-            "string Format(string format, params object[] args)",
-            "void Configure(string name, Options? options = null)"
-        }));
+            Assert.That(result.Methods![0].Name, Is.EqualTo("Format"));
+            Assert.That(result.Methods[0].Parameters[1].Type, Is.EqualTo("params object[]"));
+
+            Assert.That(result.Methods[1].Name, Is.EqualTo("Configure"));
+            Assert.That(result.Methods[1].Parameters[1].IsOptional, Is.True);
+            Assert.That(result.Methods[1].Parameters[1].Type, Is.EqualTo("Options"));
+        });
     }
+
+    #region Documentation Tests
+
+    [Test]
+    public void ToSimpleTypeInfo_MapsTypeDocumentation()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Documentation = "A test class for doing things."
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Documentation, Is.EqualTo("A test class for doing things."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_NullDocumentation_RemainsNull()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Documentation = null
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Documentation, Is.Null);
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_MethodWithDocumentation_MappedToField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Calculate",
+                    ReturnType = "double",
+                    Documentation = "Calculates the result.",
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods![0].Documentation, Is.EqualTo("Calculates the result."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_MethodWithoutDocumentation_NullDocField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Calculate",
+                    ReturnType = "double",
+                    Documentation = null,
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "x", ParameterType = "double" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods![0].Documentation, Is.Null);
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_PropertyWithDocumentation_MappedToField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Properties =
+            [
+                new PropertyInfoModel
+                {
+                    Name = "Name",
+                    PropertyType = "string",
+                    HasPublicGetter = true,
+                    HasPublicSetter = true,
+                    Documentation = "Gets or sets the name."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Properties![0].Documentation, Is.EqualTo("Gets or sets the name."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_FieldWithDocumentation_MappedToField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Fields =
+            [
+                new FieldInfoModel
+                {
+                    Name = "MaxRetries",
+                    FieldType = "int",
+                    IsConstant = true,
+                    Documentation = "Maximum number of retries."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Fields![0].Documentation, Is.EqualTo("Maximum number of retries."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_EventWithDocumentation_MappedToField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Events =
+            [
+                new EventInfoModel
+                {
+                    Name = "OnChanged",
+                    EventHandlerType = "EventHandler",
+                    Documentation = "Raised when a change occurs."
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Events![0].Documentation, Is.EqualTo("Raised when a change occurs."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_ConstructorWithDocumentation_MappedToField()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Constructors =
+            [
+                new ConstructorInfoModel
+                {
+                    Name = ".ctor",
+                    Documentation = "Creates a new instance.",
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "name", ParameterType = "string" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Constructors![0].Documentation, Is.EqualTo("Creates a new instance."));
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_EmptyDocumentation_TreatedAsNull()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "DoStuff",
+                    ReturnType = "void",
+                    Documentation = "",
+                    Parameters = []
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.That(result.Methods![0].Documentation, Is.Null);
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_StaticMethodWithDocumentation_PreservesModifiers()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Create",
+                    ReturnType = "TestClass",
+                    IsStatic = true,
+                    Documentation = "Factory method.",
+                    Parameters = []
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Methods![0].Name, Is.EqualTo("Create"));
+            Assert.That(result.Methods[0].IsStatic, Is.True);
+            Assert.That(result.Methods[0].Documentation, Is.EqualTo("Factory method."));
+        });
+    }
+
+    #endregion
+
+    #region Parameter Modifier Mapping Tests
+
+    [Test]
+    public void ToSimpleTypeInfo_ParameterModifier_MappedCorrectly()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Test",
+                    ReturnType = "void",
+                    Parameters =
+                    [
+                        new ParameterInfoModel { Name = "a", ParameterType = "int", Modifier = "ref" },
+                        new ParameterInfoModel { Name = "b", ParameterType = "int", Modifier = "out" },
+                        new ParameterInfoModel { Name = "c", ParameterType = "int", Modifier = "in" },
+                        new ParameterInfoModel { Name = "d", ParameterType = "int[]", Modifier = "params" },
+                        new ParameterInfoModel { Name = "e", ParameterType = "int", Modifier = "" }
+                    ]
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Methods![0].Parameters[0].Modifier, Is.EqualTo("ref"));
+            Assert.That(result.Methods[0].Parameters[1].Modifier, Is.EqualTo("out"));
+            Assert.That(result.Methods[0].Parameters[2].Modifier, Is.EqualTo("in"));
+            Assert.That(result.Methods[0].Parameters[3].Modifier, Is.EqualTo("params"));
+            Assert.That(result.Methods[0].Parameters[4].Modifier, Is.Null, "Empty modifier should be mapped to null");
+        });
+    }
+
+    [Test]
+    public void ToSimpleTypeInfo_MethodReturnsDocumentation_MappedCorrectly()
+    {
+        var model = new TypeInfoModel
+        {
+            FullName = "TestNamespace.TestClass",
+            Methods =
+            [
+                new MethodInfoModel
+                {
+                    Name = "Calculate",
+                    ReturnType = "double",
+                    Documentation = "Calculates the value.",
+                    ReturnsDocumentation = "The calculated result.",
+                    Parameters = []
+                }
+            ]
+        };
+
+        var result = TypeInfoModelMapper.ToSimpleTypeInfo(model);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Methods![0].Documentation, Is.EqualTo("Calculates the value."));
+            Assert.That(result.Methods[0].ReturnsDocumentation, Is.EqualTo("The calculated result."));
+        });
+    }
+
+    #endregion
 }

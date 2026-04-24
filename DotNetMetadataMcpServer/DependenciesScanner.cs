@@ -1,9 +1,11 @@
-using System.Reflection;
-using System.Runtime.Loader;
 using DependencyGraph.Core.Graph;
+using DependencyGraph.Core.Graph.Factory;
+using DotNetMetadataMcpServer.Models.Base;
 using Microsoft.Build.Locator;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.ProjectModel;
+using System.Reflection;
+using System.Runtime.Loader;
 
 namespace DotNetMetadataMcpServer;
 
@@ -14,9 +16,8 @@ public class DependenciesScanner : IDependenciesScanner
     private readonly ILogger _nuGetLogger;
     private readonly ILogger<DependenciesScanner> _logger;
 
-    private readonly HashSet<IDependencyGraphNode> _visitedNodes = new();
+    private readonly HashSet<IDependencyGraphNode> _visitedNodes = [];
 
-    private string _baseDir = "";
 
     public DependenciesScanner(
         MsBuildHelper msBuildHelper,
@@ -28,7 +29,7 @@ public class DependenciesScanner : IDependenciesScanner
         _reflection = reflectionTypesCollector;
         _nuGetLogger = nuGetLogger ?? NullLogger<LockFileFormat>.Instance;
         _logger = logger ?? NullLogger<DependenciesScanner>.Instance;
-        
+
         AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
     }
 
@@ -42,14 +43,16 @@ public class DependenciesScanner : IDependenciesScanner
     /// </summary>
     public ProjectMetadata ScanProject(string csprojPath)
     {
+        _visitedNodes.Clear();
+
         if (!MSBuildLocator.IsRegistered)
         {
             MSBuildLocator.RegisterDefaults();
         }
 
         var (asmPath, assetsPath, tfm) = _msbuild.EvaluateProject(csprojPath);
-        
-        _baseDir = Path.GetDirectoryName(asmPath) ?? "";
+
+        var baseDir = Path.GetDirectoryName(asmPath) ?? "";
 
         var projectName = Path.GetFileNameWithoutExtension(csprojPath);
         var pm = new ProjectMetadata
@@ -75,33 +78,32 @@ public class DependenciesScanner : IDependenciesScanner
         // 3) Build DependencyGraph
         var lockFileFormat = new LockFileFormat();
         var lockFile = lockFileFormat.Read(assetsPath, new MicrosoftLoggerAdapter(_nuGetLogger));
-        
-        
+
+
         var theFirstTarget = lockFile.Targets.FirstOrDefault();
         if (theFirstTarget == null)
         {
             _logger.LogWarning("No targets found in lock file.");
             return pm;
         }
-        
-        foreach (var lib in theFirstTarget.Libraries)
-        {
-            var d = BuildDependencyInfo(lib);
-            depList.AddRange(d);
-        }
-        
 
-        /*var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
+        var depGraphFactory = new DependencyGraphFactory(new DependencyGraphFactoryOptions
         {
             Excludes = ["Microsoft.*", "System.*"]
         });
-        
+
         var graph = depGraphFactory.FromLockFile(lockFile);
 
-        var rootNode = graph.RootNodes.FirstOrDefault() as RootProjectDependencyGraphNode;
+        var rootNode = graph.RootNodes.OfType<RootProjectDependencyGraphNode>().FirstOrDefault();
         if (rootNode == null)
         {
             _logger.LogWarning("No RootProjectDependencyGraphNode found.");
+            foreach (var lib in theFirstTarget.Libraries)
+            {
+                var d = BuildDependencyInfo(lib, baseDir);
+                depList.Add(d);
+            }
+
             return pm;
         }
 
@@ -109,44 +111,52 @@ public class DependenciesScanner : IDependenciesScanner
         if (tfmNode == null)
         {
             _logger.LogWarning("No TargetFrameworkDependencyGraphNode found under root.");
+            foreach (var lib in theFirstTarget.Libraries)
+            {
+                var d = BuildDependencyInfo(lib, baseDir);
+                depList.Add(d);
+            }
+
             return pm;
         }
-        
+
         foreach (var child in tfmNode.Dependencies)
         {
-            var d = BuildDependencyInfo(child);
-            if (d != null) depList.Add(d);
-        }*/
-        
+            var d = BuildDependencyInfo(child, baseDir, tfmNode.TargetFrameworkIdentifier);
+            if (d != null)
+            {
+                depList.Add(d);
+            }
+        }
+
 
         return pm;
     }
 
-    private List<DependencyInfo> BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary)
+    private DependencyInfo BuildDependencyInfo(LockFileTargetLibrary lockFileTargetLibrary, string baseDir)
     {
-        var result = new List<DependencyInfo>();
+        var info = new DependencyInfo
+        {
+            Name = lockFileTargetLibrary.Name ?? "Unknown",
+            Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
+            NodeType = DependencyNodeTypes.Package,
+            Framework = null
+        };
+
         foreach (var lockFileItem in lockFileTargetLibrary.RuntimeAssemblies)
         {
-            var rel = lockFileItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
+            var rel = lockFileItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
+            info.Framework ??= ExtractFrameworkFromRuntimeAssemblyPath(rel);
             var fileName = Path.GetFileName(rel);
-            var full = Path.Combine(_baseDir, fileName);
+            var full = Path.Combine(baseDir, fileName);
             var types = _reflection.LoadAssemblyTypes(full);
-            var info = new DependencyInfo
-            {
-                Name = lockFileTargetLibrary.Name ?? "Unknown",
-                Version = lockFileTargetLibrary.Version?.ToNormalizedString() ?? "",
-                NodeType = "package",
-                Types = types
-            };
-            result.Add(info);
+            info.Types.AddRange(types);
         }
 
-        return result;
+        return info;
     }
-    
-    
 
-    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node)
+    private DependencyInfo? BuildDependencyInfo(IDependencyGraphNode node, string baseDir, string? framework)
     {
         // Check if already visited
         if (!_visitedNodes.Add(node))
@@ -155,122 +165,148 @@ public class DependenciesScanner : IDependenciesScanner
         switch (node)
         {
             case RootProjectDependencyGraphNode rootNode:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = rootNode.Name,
-                    NodeType = "root"
-                };
-                foreach (var child in rootNode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    var info = new DependencyInfo
+                    {
+                        Name = rootNode.Name,
+                        NodeType = DependencyNodeTypes.Root,
+                        Framework = framework
+                    };
+
+                    foreach (var child in rootNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child, baseDir, framework);
+                        if (c != null)
+                            info.Children.Add(c);
+                    }
+
+                    return info;
                 }
-                return info;
-            }
             case TargetFrameworkDependencyGraphNode tfmNode:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = tfmNode.ProjectName,
-                    Version = tfmNode.TargetFrameworkIdentifier,
-                    NodeType = "target framework dependency"
-                };
-                foreach (var child in tfmNode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    var info = new DependencyInfo
+                    {
+                        Name = tfmNode.ProjectName,
+                        Version = tfmNode.TargetFrameworkIdentifier,
+                        NodeType = DependencyNodeTypes.TargetFramework,
+                        Framework = tfmNode.TargetFrameworkIdentifier
+                    };
+
+                    foreach (var child in tfmNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child, baseDir, tfmNode.TargetFrameworkIdentifier);
+                        if (c != null)
+                            info.Children.Add(c);
+                    }
+
+                    return info;
                 }
-                return info;
-            }
             case PackageDependencyGraphNode pkgNode:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = pkgNode.Name,
-                    Version = pkgNode.Version.ToNormalizedString(),
-                    NodeType = "package"
-                };
-                // Load RuntimeAssemblies
-                if (pkgNode.TargetLibrary != null)
-                {
+                    var info = new DependencyInfo
+                    {
+                        Name = pkgNode.Name,
+                        Version = pkgNode.Version.ToNormalizedString(),
+                        NodeType = DependencyNodeTypes.Package,
+                        Framework = framework
+                    };
+
+                    // Load RuntimeAssemblies
                     foreach (var asmItem in pkgNode.TargetLibrary.RuntimeAssemblies)
                     {
-                        var rel = asmItem.Path; // e.g., "lib/net9.0/FluentValidation.dll"
+                        var rel = asmItem.Path; // e.g., "lib/net10.0/FluentValidation.dll"
                         var fileName = Path.GetFileName(rel);
-                        var full = Path.Combine(_baseDir, fileName);
+                        var full = Path.Combine(baseDir, fileName);
                         var types = _reflection.LoadAssemblyTypes(full);
                         info.Types.AddRange(types);
                     }
+
+                    foreach (var child in pkgNode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child, baseDir, framework);
+                        if (c != null)
+                            info.Children.Add(c);
+                    }
+
+                    return info;
                 }
-                foreach (var child in pkgNode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
-                }
-                return info;
-            }
             case ProjectDependencyGraphNode pnode:
-            {
-                // Currently unable to load assemblies of other projects
-                var info = new DependencyInfo
                 {
-                    Name = pnode.Name,
-                    NodeType = "project"
-                };
-                foreach (var child in pnode.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    // Currently unable to load assemblies of other projects
+                    var info = new DependencyInfo
+                    {
+                        Name = pnode.Name,
+                        NodeType = DependencyNodeTypes.Project,
+                        Framework = framework
+                    };
+
+                    foreach (var child in pnode.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child, baseDir, framework);
+                        if (c != null)
+                            info.Children.Add(c);
+                    }
+
+                    return info;
                 }
-                return info;
-            }
             default:
-            {
-                var info = new DependencyInfo
                 {
-                    Name = node.ToString() ?? "Unknown",
-                    NodeType = "unknown"
-                };
-                foreach (var child in node.Dependencies)
-                {
-                    var c = BuildDependencyInfo(child);
-                    if (c != null) info.Children.Add(c);
+                    var info = new DependencyInfo
+                    {
+                        Name = node.ToString() ?? "Unknown",
+                        NodeType = DependencyNodeTypes.Unknown,
+                        Framework = framework
+                    };
+
+                    foreach (var child in node.Dependencies)
+                    {
+                        var c = BuildDependencyInfo(child, baseDir, framework);
+                        if (c != null)
+                            info.Children.Add(c);
+                    }
+
+                    return info;
                 }
-                return info;
-            }
         }
     }
-    
-    private Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
+
+    private static Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
     {
         var assemblyName = new AssemblyName(args.Name);
-        var requestingAssemblyLocation = args.RequestingAssembly?.Location;
+        
+        // In single-file deployments Assembly.Location returns empty; use AppContext.BaseDirectory as primary fallback
         string? baseDirectory = null;
-
+        
+        // Try to get directory from requesting assembly first (if not single-file)
+        var requestingAssemblyLocation = args.RequestingAssembly?.Location;
         if (!string.IsNullOrEmpty(requestingAssemblyLocation))
         {
             baseDirectory = Path.GetDirectoryName(requestingAssemblyLocation);
         }
 
-        if (string.IsNullOrEmpty(baseDirectory))
-        {
-            // In single-file deployments Assembly.Location returns empty; fallback to app base directory
-            baseDirectory = AppContext.BaseDirectory;
-        }
+        // Fallback to app base directory for single-file deployments or when Location is unavailable
+        baseDirectory ??= AppContext.BaseDirectory;
 
-        var assemblyPath = Path.Combine(baseDirectory!, $"{assemblyName.Name}.dll");
+        var assemblyPath = Path.Combine(baseDirectory, $"{assemblyName.Name}.dll");
 
-        if (File.Exists(assemblyPath))
-        {
-            return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
-        }
-
-        return null;
+        return File.Exists(assemblyPath)
+            ? AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath)
+            : null;
     }
 
     public void Dispose()
     {
         AppDomain.CurrentDomain.AssemblyResolve -= ResolveAssembly;
+    }
+
+    private static string? ExtractFrameworkFromRuntimeAssemblyPath(string runtimeAssemblyPath)
+    {
+        var parts = runtimeAssemblyPath.Split('/');
+        if (parts.Length >= 2 && string.Equals(parts[0], "lib", StringComparison.OrdinalIgnoreCase))
+        {
+            return parts[1];
+        }
+
+        return null;
     }
 }

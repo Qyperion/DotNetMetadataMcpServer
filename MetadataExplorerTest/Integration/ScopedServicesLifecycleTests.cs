@@ -15,7 +15,7 @@ namespace MetadataExplorerTest.Integration;
 [NonParallelizable] // Uses static counter _scannerConstructedCount
 public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
 {
-    private static int _scannerConstructedCount = 0;
+    private static int _scannerConstructedCount;
 
     protected override void ConfigureServices(ServiceCollection services, IMcpServerBuilder mcpServerBuilder)
     {
@@ -42,7 +42,8 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
         // Register services as scoped with tracking
         services.AddScoped<MsBuildHelper>();
         services.AddScoped<ReflectionTypesCollector>();
-        
+        services.AddSingleton<IProjectMetadataCache, ProjectMetadataCache>();
+
         services.AddScoped<IDependenciesScanner>(sp =>
         {
             Interlocked.Increment(ref _scannerConstructedCount);
@@ -52,7 +53,7 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DependenciesScanner>>());
             return scanner;
         });
-        
+
         services.AddScoped<AssemblyToolService>();
         services.AddScoped<NamespaceToolService>();
         services.AddScoped<TypeToolService>();
@@ -63,7 +64,7 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
     {
         // Arrange
         await using var client = await CreateMcpClientAsync();
-        
+
         var initialScannerConstructed = _scannerConstructedCount;
 
         // Act - List tools multiple times
@@ -71,7 +72,7 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
         {
             var tools = await client.ListToolsAsync();
             Assert.That(tools, Is.Not.Empty);
-            
+
             // Give some time for disposal to complete
             await Task.Delay(100);
         }
@@ -129,7 +130,7 @@ public class ScopedServicesLifecycleTests : McpServerIntegrationTestBase
         var scanner1 = scope1.ServiceProvider.GetRequiredService<IDependenciesScanner>();
         var scanner2 = scope2.ServiceProvider.GetRequiredService<IDependenciesScanner>();
 
-        Assert.That(scanner1, Is.Not.SameAs(scanner2), 
+        Assert.That(scanner1, Is.Not.SameAs(scanner2),
             "Different scopes should create different instances of scoped services");
     }
 

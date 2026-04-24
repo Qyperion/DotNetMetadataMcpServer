@@ -57,10 +57,22 @@ public abstract class McpServerIntegrationTestBase : IAsyncDisposable
     {
         await _cts.CancelAsync();
 
+        // Complete all pipe ends to unblock any pending reads/writes
         _clientToServerPipe.Writer.Complete();
+        _clientToServerPipe.Reader.Complete();
         _serverToClientPipe.Writer.Complete();
+        _serverToClientPipe.Reader.Complete();
 
-        await _serverTask;
+        // Wait for the server task with a timeout to prevent hanging
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await _serverTask.WaitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation is requested or timeout is reached
+        }
 
         if (ServiceProvider is IAsyncDisposable asyncDisposable)
         {

@@ -1,9 +1,10 @@
-using System.ComponentModel;
-using System.Text.Json;
 using DotNetMetadataMcpServer.Configuration;
+using DotNetMetadataMcpServer.Helpers;
+using DotNetMetadataMcpServer.Models.Base;
 using DotNetMetadataMcpServer.Services;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
 
 namespace DotNetMetadataMcpServer.Tools;
 
@@ -19,36 +20,45 @@ public sealed class NuGetTools
         [Description("The search query to find packages")] string searchQuery,
         [Description("Include prerelease versions in search results")] bool includePrerelease = false,
         [Description("Full text filters with wildcard support")] List<string>? fullTextFiltersWithWildCardSupport = null,
-        [Description("Page number (1-based)")] int pageNumber = 1)
+        [Description("Include target frameworks (wildcards).") ] List<string>? includeFrameworks = null,
+        [Description("Exclude target frameworks (wildcards).") ] List<string>? excludeFrameworks = null,
+        [Description("Sort field: 'relevance' (default), 'id', 'version', 'downloads', 'published'")] string sortBy = NuGetSearchSortFields.Relevance,
+        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = SortDirections.Asc,
+        [Description("Page number (1-based)")] int pageNumber = 1,
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginScope("{NuGetSearchToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to search NuGet packages: {Query}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to search NuGet packages: {Query}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}",
             searchQuery, includePrerelease, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
-            
-            var result = await nuGetToolService.SearchPackagesAsync(
-                searchQuery: searchQuery,
-                filters: filters,
-                includePrerelease: includePrerelease,
-                pageNumber: pageNumber,
-                pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
+
+            var result = await ToolResultHelper.ExecuteWithTimeoutAsync(
+                token => nuGetToolService.SearchPackagesAsync(
+                    searchQuery: searchQuery,
+                    filters: filters,
+                    includePrerelease: includePrerelease,
+                    sortBy: sortBy,
+                    sortDirection: sortDirection,
+                    pageNumber: pageNumber,
+                    pageSize: toolsConfiguration.Value.DefaultPageSize,
+                    cancellationToken: token,
+                    includeFrameworks: includeFrameworks,
+                    excludeFrameworks: excludeFrameworks),
+                toolsConfiguration.Value.NuGetPackageSearchTimeoutSeconds,
+                cancellationToken);
+
             logger.LogDebug("NuGet packages search completed successfully: {@SearchResult}", result);
-            
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
-                : JsonSerializer.Serialize(result);
-            
-            return json;
+
+            return ToolResultHelper.Serialize(result, toolsConfiguration.Value.IndentResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error searching NuGet packages");
-            throw;
+            return ToolResultHelper.SerializeError(ex, toolsConfiguration.Value.IndentResponse, "NuGetPackageSearch");
         }
     }
 
@@ -61,36 +71,45 @@ public sealed class NuGetTools
         [Description("The package ID to get versions for")] string packageId,
         [Description("Include prerelease versions in results")] bool includePrerelease = false,
         [Description("Full text filters with wildcard support")] List<string>? fullTextFiltersWithWildCardSupport = null,
-        [Description("Page number (1-based)")] int pageNumber = 1)
+        [Description("Include target frameworks (wildcards).") ] List<string>? includeFrameworks = null,
+        [Description("Exclude target frameworks (wildcards).") ] List<string>? excludeFrameworks = null,
+        [Description("Sort field: 'relevance' (default), 'version', 'downloads', 'published'")] string sortBy = NuGetVersionSortFields.Relevance,
+        [Description("Sort direction: 'asc' (default) or 'desc'")] string sortDirection = SortDirections.Asc,
+        [Description("Page number (1-based)")] int pageNumber = 1,
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginScope("{NuGetVersionsToolExecutionUid}", Guid.NewGuid());
-        
-        logger.LogInformation("Received request to get versions for NuGet package: {PackageId}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}", 
+
+        logger.LogInformation("Received request to get versions for NuGet package: {PackageId}, IncludePrerelease: {IncludePrerelease}, Page: {PageNumber}",
             packageId, includePrerelease, pageNumber);
-        
+
         try
         {
-            var filters = fullTextFiltersWithWildCardSupport ?? new List<string>();
-            
-            var result = await nuGetToolService.GetPackageVersionsAsync(
-                packageId: packageId,
-                filters: filters,
-                includePrerelease: includePrerelease,
-                pageNumber: pageNumber,
-                pageSize: toolsConfiguration.Value.DefaultPageSize);
-            
+            var filters = fullTextFiltersWithWildCardSupport ?? [];
+
+            var result = await ToolResultHelper.ExecuteWithTimeoutAsync(
+                token => nuGetToolService.GetPackageVersionsAsync(
+                    packageId: packageId,
+                    filters: filters,
+                    includePrerelease: includePrerelease,
+                    sortBy: sortBy,
+                    sortDirection: sortDirection,
+                    pageNumber: pageNumber,
+                    pageSize: toolsConfiguration.Value.DefaultPageSize,
+                    cancellationToken: token,
+                    includeFrameworks: includeFrameworks,
+                    excludeFrameworks: excludeFrameworks),
+                toolsConfiguration.Value.NuGetPackageVersionsTimeoutSeconds,
+                cancellationToken);
+
             logger.LogDebug("NuGet package versions retrieved successfully: {@VersionsResult}", result);
-            
-            var json = toolsConfiguration.Value.IntendResponse
-                ? JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true })
-                : JsonSerializer.Serialize(result);
-            
-            return json;
+
+            return ToolResultHelper.Serialize(result, toolsConfiguration.Value.IndentResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting NuGet package versions");
-            throw;
+            return ToolResultHelper.SerializeError(ex, toolsConfiguration.Value.IndentResponse, "NuGetPackageVersions");
         }
     }
 }

@@ -32,7 +32,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, pageNumber, pageSize);
+        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, "relevance", "asc", pageNumber, pageSize);
 
         // Assert
         Assert.That(response.Packages, Is.Not.Empty);
@@ -55,7 +55,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, pageNumber, pageSize);
+        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, "relevance", "asc", pageNumber, pageSize);
 
         // Assert
         Assert.That(response.Packages, Is.Not.Empty);
@@ -76,7 +76,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, pageNumber, pageSize);
+        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, "relevance", "asc", pageNumber, pageSize);
 
         // Assert
         Assert.That(response.Versions, Is.Not.Empty);
@@ -103,7 +103,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, pageNumber, pageSize);
+        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, "relevance", "asc", pageNumber, pageSize);
 
         // Assert
         Assert.That(response.Versions, Is.Not.Empty);
@@ -124,7 +124,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, invalidPageNumber, pageSize);
+        var response = await _service.SearchPackagesAsync(searchQuery, filters, includePrerelease, "relevance", "asc", invalidPageNumber, pageSize);
 
         // Assert
         Assert.That(response.Packages, Is.Empty);
@@ -143,7 +143,7 @@ public class NuGetToolServiceTests
         const int pageSize = 10;
 
         // Act
-        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, invalidPageNumber, pageSize);
+        var response = await _service.GetPackageVersionsAsync(packageId, filters, includePrerelease, "relevance", "asc", invalidPageNumber, pageSize);
 
         // Assert
         Assert.That(response.Versions, Is.Empty);

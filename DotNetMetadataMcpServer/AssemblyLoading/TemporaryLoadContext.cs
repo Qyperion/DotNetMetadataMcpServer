@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.Loader;
 
-namespace DotNetMetadataMcpServer;
+namespace DotNetMetadataMcpServer.AssemblyLoading;
 
 internal sealed class TemporaryLoadContext : AssemblyLoadContext, IDisposable
 {

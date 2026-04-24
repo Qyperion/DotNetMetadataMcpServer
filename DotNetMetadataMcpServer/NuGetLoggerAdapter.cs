@@ -50,12 +50,13 @@ public class MicrosoftLoggerAdapter : NuGet.Common.ILogger
 
     public void Log(NuGet.Common.LogLevel level, string data)
     {
-        throw new NotImplementedException();
+        _logger.Log(MapLogLevel(level), data);
     }
 
     public Task LogAsync(NuGet.Common.LogLevel level, string data)
     {
-        throw new NotImplementedException();
+        _logger.Log(MapLogLevel(level), data);
+        return Task.CompletedTask;
     }
 
     public void Log(Microsoft.Extensions.Logging.LogLevel level, string data)
